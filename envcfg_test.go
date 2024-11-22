@@ -735,79 +735,110 @@ func TestParseWithDefaults(t *testing.T) {
 	}, cfg)
 }
 
-func TestParseEmptyPointers(t *testing.T) {
-	type Config struct {
-		EmptyString   *string
-		EmptyInt      *int
-		EmptyBool     *bool
-		EmptyFloat    *float64
-		EmptyStruct   *struct{}
-		EmptySlice    *[]string
-		EmptyMap      *map[string]string
-		EmptyDuration *time.Duration
-		EmptyURL      *url.URL
-	}
-
-	cfg := Config{}
-	err := envcfg.Parse(&cfg)
-
-	assert.NoError(t, err)
-	assert.Equal(t, Config{
-		EmptyString:   nil,
-		EmptyInt:      nil,
-		EmptyBool:     nil,
-		EmptyFloat:    nil,
-		EmptyStruct:   nil,
-		EmptySlice:    nil,
-		EmptyMap:      nil,
-		EmptyDuration: nil,
-		EmptyURL:      nil,
-	}, cfg)
-}
-
-func TestParseNonEmptyPointers(t *testing.T) {
+func TestParseInitValues(t *testing.T) {
 	type Inner struct {
 		Value string
 	}
 
 	type Config struct {
-		EmptyString   *string
-		EmptyInt      *int
-		EmptyBool     *bool
-		EmptyFloat    *float64
-		EmptyStruct   *Inner
-		EmptySlice    *[]string
-		EmptyMap      *map[string]string
-		EmptyDuration *time.Duration
-		EmptyURL      *url.URL
+		String           string
+		StringPtr        *string
+		Int              int
+		IntPtr           *int
+		Bool             bool
+		BoolPtr          *bool
+		Float            float64
+		FloatPtr         *float64
+		Struct           Inner
+		StructPtr        *Inner
+		Slice            []string
+		SlicePtr         *[]string
+		Map              map[string]string
+		PtrMap           *map[string]string
+		Duration         time.Duration
+		DurationPtr      *time.Duration
+		URL              url.URL
+		URLPtr           *url.URL
+		EmptyString      string
+		EmptyStringPtr   *string
+		EmptyInt         int
+		EmptyIntPtr      *int
+		EmptyBool        bool
+		EmptyBoolPtr     *bool
+		EmptyFloat       float64
+		EmptyFloatPtr    *float64
+		EmptyStruct      Inner
+		EmptyStructPtr   *Inner
+		EmptySlice       []string
+		EmptySlicePtr    *[]string
+		EmptyMap         map[string]string
+		EmptyMapPtr      *map[string]string
+		EmptyDuration    time.Duration
+		EmptyDurationPtr *time.Duration
+		EmptyURL         url.URL
+		EmptyURLPtr      *url.URL
 	}
 
-	t.Setenv("EMPTY_STRING", "hello")
-	t.Setenv("EMPTY_INT", "1")
-	t.Setenv("EMPTY_BOOL", "true")
-	t.Setenv("EMPTY_FLOAT", "1.1")
-	t.Setenv("EMPTY_DURATION", "1s")
-	t.Setenv("EMPTY_URL", "http://example.com")
-	t.Setenv("EMPTY_SLICE_0", "hello")
-	t.Setenv("EMPTY_MAP_KEY", "hello")
-	t.Setenv("EMPTY_DURATION", "10s")
-	t.Setenv("EMPTY_URL", "http://example.com")
-	t.Setenv("EMPTY_STRUCT_VALUE", "hello")
+	t.Setenv("STRING", "hello")
+	t.Setenv("STRING_PTR", "hello")
+	t.Setenv("INT", "1")
+	t.Setenv("INT_PTR", "1")
+	t.Setenv("BOOL", "true")
+	t.Setenv("BOOL_PTR", "true")
+	t.Setenv("FLOAT", "1.1")
+	t.Setenv("FLOAT_PTR", "1.1")
+	t.Setenv("STRUCT_VALUE", "hello")
+	t.Setenv("STRUCT_PTR_VALUE", "hello")
+	t.Setenv("SLICE_0", "hello")
+	t.Setenv("SLICE_PTR_0", "hello")
+	t.Setenv("MAP_KEY", "hello")
+	t.Setenv("PTR_MAP_KEY", "hello")
+	t.Setenv("DURATION", "10s")
+	t.Setenv("DURATION_PTR", "10s")
+	t.Setenv("URL", "http://example.com")
+	t.Setenv("URL_PTR", "https://example.com")
 
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
 	assert.NoError(t, err)
 	assert.Equal(t, Config{
-		EmptyString:   strPtr("hello"),
-		EmptyInt:      intPtr(1),
-		EmptyBool:     boolPtr(true),
-		EmptyFloat:    float64Ptr(1.1),
-		EmptyStruct:   &Inner{Value: "hello"},
-		EmptySlice:    &[]string{"hello"},
-		EmptyMap:      &map[string]string{"key": "hello"},
-		EmptyDuration: durationPtr(10 * time.Second),
-		EmptyURL:      &url.URL{Scheme: "http", Host: "example.com"},
+		String:           "hello",
+		StringPtr:        strPtr("hello"),
+		Int:              1,
+		IntPtr:           intPtr(1),
+		Bool:             true,
+		BoolPtr:          boolPtr(true),
+		Float:            1.1,
+		FloatPtr:         float64Ptr(1.1),
+		Struct:           Inner{Value: "hello"},
+		StructPtr:        &Inner{Value: "hello"},
+		Slice:            []string{"hello"},
+		SlicePtr:         &[]string{"hello"},
+		Map:              map[string]string{"key": "hello"},
+		PtrMap:           &map[string]string{"key": "hello"},
+		Duration:         10 * time.Second,
+		DurationPtr:      durationPtr(10 * time.Second),
+		URL:              url.URL{Scheme: "http", Host: "example.com"},
+		URLPtr:           &url.URL{Scheme: "https", Host: "example.com"},
+		EmptyString:      "",
+		EmptyStringPtr:   nil,
+		EmptyInt:         0,
+		EmptyIntPtr:      nil,
+		EmptyBool:        false,
+		EmptyBoolPtr:     nil,
+		EmptyFloat:       0,
+		EmptyFloatPtr:    nil,
+		EmptyStruct:      Inner{},
+		EmptyStructPtr:   nil,
+		EmptySlice:       nil,
+		EmptySlicePtr:    nil,
+		EmptyMap:         nil,
+		EmptyMapPtr:      nil,
+		EmptyDuration:    0,
+		EmptyDurationPtr: nil,
+		EmptyURL:         url.URL{},
+		EmptyURLPtr:      nil,
 	}, cfg)
 }
 
@@ -817,15 +848,17 @@ func TestParseInitNever(t *testing.T) {
 	}
 
 	type Config struct {
-		EmptyString   *string
-		EmptyInt      *int
-		EmptyBool     *bool
-		EmptyFloat    *float64
-		EmptyStruct   *Inner
-		EmptySlice    *[]string
-		EmptyMap      *map[string]string
-		EmptyDuration *time.Duration
-		EmptyURL      *url.URL
+		EmptyStringPtr   *string
+		EmptyIntPtr      *int
+		EmptyBoolPtr     *bool
+		EmptyFloatPtr    *float64
+		EmptyStructPtr   *Inner
+		EmptySlice       []string
+		EmptySlicePtr    *[]string
+		EmptyMap         map[string]string
+		EmptyMapPtr      *map[string]string
+		EmptyDurationPtr *time.Duration
+		EmptyURLPtr      *url.URL
 	}
 
 	t.Setenv("EMPTY_STRING", "hello")
@@ -845,15 +878,17 @@ func TestParseInitNever(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, Config{
-		EmptyString:   nil,
-		EmptyInt:      nil,
-		EmptyBool:     nil,
-		EmptyFloat:    nil,
-		EmptyStruct:   nil,
-		EmptySlice:    nil,
-		EmptyMap:      nil,
-		EmptyDuration: nil,
-		EmptyURL:      nil,
+		EmptyStringPtr:   nil,
+		EmptyIntPtr:      nil,
+		EmptyBoolPtr:     nil,
+		EmptyFloatPtr:    nil,
+		EmptyStructPtr:   nil,
+		EmptySlice:       nil,
+		EmptySlicePtr:    nil,
+		EmptyMap:         nil,
+		EmptyMapPtr:      nil,
+		EmptyDurationPtr: nil,
+		EmptyURLPtr:      nil,
 	}, cfg)
 }
 

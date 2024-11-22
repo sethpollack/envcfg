@@ -199,30 +199,24 @@ func (w *walker) walkStructField(rv reflect.Value, rsf reflect.StructField, pfx 
 		return nil
 	}
 
-	isNilPtr := isNilPtr(rv)
-
-	// If the field is a nil pointer, create a copy of the field.
-	nrv := rv
-	if isNilPtr {
-		nrv = reflect.New(rv.Type().Elem()).Elem()
+	var temp = reflect.New(rv.Type()).Elem()
+	if isNilPtr(rv) {
+		temp = reflect.New(rv.Type().Elem()).Elem()
+	} else if isPtr(rv) {
+		temp.Set(rv.Elem())
 	}
 
-	if w.hasParserOrSetter(nrv, nrv.Type()) {
-		if err := w.parseStructField(nrv, rsf, pfx...); err != nil {
+	if w.hasParserOrSetter(temp, temp.Type()) {
+		if err := w.parseStructField(temp, rsf, pfx...); err != nil {
 			return err
 		}
 	} else {
-		if err := w.walkNestedStructField(nrv, rsf, pfx...); err != nil {
+		if err := w.walkNestedStructField(temp, rsf, pfx...); err != nil {
 			return err
 		}
 	}
 
-	// If the field is a nil pointer, initialize it according to the init mode.
-	if isNilPtr {
-		return w.parseNilPtr(nrv, rv, rsf, pfx...)
-	}
-
-	return nil
+	return w.setIfNeeded(temp, rv, rsf)
 }
 
 func (w *walker) walkNestedStructField(rv reflect.Value, rsf reflect.StructField, pfx ...string) error {
@@ -347,7 +341,7 @@ func (w *walker) parseStructField(rv reflect.Value, rsf reflect.StructField, pfx
 	return w.parseField(rv, rv.Type(), value)
 }
 
-func (w *walker) parseNilPtr(temp, rv reflect.Value, rsf reflect.StructField, pfx ...string) error {
+func (w *walker) setIfNeeded(temp, rv reflect.Value, rsf reflect.StructField) error {
 	tags := tag.ParseTags(rsf)
 
 	initMode := w.parseInitMode(tags)
@@ -360,9 +354,14 @@ func (w *walker) parseNilPtr(temp, rv reflect.Value, rsf reflect.StructField, pf
 		return nil
 	}
 
-	newPtr := reflect.New(rv.Type().Elem())
-	newPtr.Elem().Set(temp)
-	rv.Set(newPtr)
+	switch rv.Kind() {
+	case reflect.Ptr:
+		newPtr := reflect.New(rv.Type().Elem())
+		newPtr.Elem().Set(temp)
+		rv.Set(newPtr)
+	default:
+		rv.Set(temp)
+	}
 
 	return nil
 }
