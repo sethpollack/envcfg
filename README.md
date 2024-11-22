@@ -190,6 +190,18 @@ Config:
   }
 ```
 
+> [!TIP]
+> The example above demonstrates the three supported syntaxes for both slices and maps:
+> - **Slices**:
+>   - delimited `TAGS=tag1,tag2,tag3`
+>   - indexed `PORTS_0=8080`
+>   - struct `SERVERS_0_HOST=localhost`
+> - **Maps**:
+>   - key-value pairs `LABELS=key1:value1`
+>   - flat keys `SETTINGS_KEY1=1`
+>   - struct `DATABASES_PRIMARY_HOST=localhost`
+
+
 ## Types
 - `string`
 - `int`, `int8`, `int16`, `int32`, `int64`
