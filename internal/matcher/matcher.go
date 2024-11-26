@@ -15,14 +15,6 @@ type Loader interface {
 	Build(opts ...any) error
 }
 
-type matchType string
-
-const (
-	exactMatch  matchType = "exact"
-	prefixMatch matchType = "prefix"
-	bestMatch   matchType = "best"
-)
-
 type Option func(*matcher)
 
 func WithTagName(tagName string) Option {
@@ -61,24 +53,6 @@ func WithRequiredTag(tag string) Option {
 	}
 }
 
-func WithMatchTag(tag string) Option {
-	return func(m *matcher) {
-		m.matchTag = tag
-	}
-}
-
-func WithExactMatch() Option {
-	return func(m *matcher) {
-		m.defaultMatch = exactMatch
-	}
-}
-
-func WithBestMatch() Option {
-	return func(m *matcher) {
-		m.defaultMatch = bestMatch
-	}
-}
-
 func WithLoader(loader Loader) Option {
 	return func(m *matcher) {
 		m.loader = loader
@@ -98,24 +72,20 @@ type matcher struct {
 	fileTag         string
 	notEmptyTag     string
 	requiredTag     string
-	matchTag        string
 	disableFallback bool
-	defaultMatch    matchType
 	loader          Loader
 	envVars         map[string]string
 }
 
 func New() *matcher {
 	return &matcher{
-		tagName:      "env",
-		defaultTag:   "default",
-		expandTag:    "expand",
-		fileTag:      "file",
-		matchTag:     "match",
-		notEmptyTag:  "notempty",
-		requiredTag:  "required",
-		defaultMatch: prefixMatch,
-		loader:       loader.New(),
+		tagName:     "env",
+		defaultTag:  "default",
+		expandTag:   "expand",
+		fileTag:     "file",
+		notEmptyTag: "notempty",
+		requiredTag: "required",
+		loader:      loader.New(),
 	}
 }
 
@@ -148,7 +118,7 @@ func (m *matcher) GetValue(rsf reflect.StructField, prefixes []string) (string, 
 			continue
 		}
 
-		found, key, value := m.getValue(m.getMatchType(opts), tag.Value, prefixes)
+		found, key, value := m.getValue(tag.Value, prefixes)
 		if found {
 			foundMatch = true
 			foundKey = key
@@ -197,7 +167,6 @@ func (m *matcher) GetValue(rsf reflect.StructField, prefixes []string) (string, 
 
 func (m *matcher) GetPrefix(rsf reflect.StructField, prefixes []string) string {
 	parsedTags := tag.ParseTags(rsf)
-	opts := m.parseOptions(parsedTags)
 
 	for tagName, tag := range parsedTags {
 		if tag.Value == "" {
@@ -208,33 +177,14 @@ func (m *matcher) GetPrefix(rsf reflect.StructField, prefixes []string) string {
 			continue
 		}
 
-		switch m.getMatchType(opts) {
-		case exactMatch:
-			for key := range m.envVars {
-				if strings.HasPrefix(key, strings.ToUpper(tag.Value)) {
-					return strings.ToUpper(tag.Value)
-				}
-			}
-		case prefixMatch:
-			envVarName := toEnvVarName(prefixes, tag.Value)
-			for key := range m.envVars {
-				if strings.HasPrefix(key, envVarName) {
-					return strings.ToUpper(tag.Value)
-				}
-			}
-		case bestMatch:
-			for _, prefix := range toPrefixSets(prefixes) {
-				envVarName := toEnvVarName([]string{prefix}, tag.Value)
-				for key := range m.envVars {
-					if strings.HasPrefix(key, envVarName) {
-						return strings.ToUpper(tag.Value)
-					}
-				}
+		envVarName := toEnvVarName(prefixes, tag.Value)
+		for key := range m.envVars {
+			if strings.HasPrefix(key, envVarName) {
+				return strings.ToUpper(tag.Value)
 			}
 		}
 	}
 
-	// if no matches are found, fallback to the field name
 	return strings.ToUpper(rsf.Name)
 }
 
@@ -251,11 +201,8 @@ func (m *matcher) GetMapKeys(rsf reflect.StructField, prefixes []string) []strin
 func (m *matcher) getPrimitiveMapKeys(rsf reflect.StructField, prefixes []string) []string {
 	uniqueKeys := make(map[string]struct{})
 
-	parsedTags := tag.ParseTags(rsf)
-	opts := m.parseOptions(parsedTags)
-
 	for envVarName := range m.envVars {
-		if key := m.getMapKey(m.getMatchType(opts), "", envVarName, prefixes); key != "" {
+		if key := m.getMapKey("", envVarName, prefixes); key != "" {
 			uniqueKeys[key] = struct{}{}
 		}
 	}
@@ -300,8 +247,8 @@ func (m *matcher) findLongestMatchingKey(rte reflect.Type, envVarName string, pr
 			if m.disableFallback && m.tagName != tagName {
 				continue
 			}
-			opts := m.parseOptions(parsedTags)
-			mapKey := m.getMapKey(m.getMatchType(opts), tag.Value, envVarName, prefixes)
+
+			mapKey := m.getMapKey(tag.Value, envVarName, prefixes)
 			if mapKey != "" {
 				if len(tag.Value) > longestMatch {
 					longestMatch = len(tag.Value)
@@ -314,71 +261,33 @@ func (m *matcher) findLongestMatchingKey(rte reflect.Type, envVarName string, pr
 	return bestKey
 }
 
-func (m *matcher) getValue(matchType matchType, fieldName string, prefixes []string) (bool, string, string) {
+func (m *matcher) getValue(fieldName string, prefixes []string) (bool, string, string) {
 	fieldName = strings.ToUpper(fieldName)
 
-	switch matchType {
-	case exactMatch:
-		if value, ok := m.envVars[fieldName]; ok {
-			return true, fieldName, value
-		}
-	case prefixMatch:
-		envVarName := toEnvVarName(prefixes, fieldName)
-		if value, ok := m.envVars[envVarName]; ok {
-			return true, envVarName, value
-		}
-	case bestMatch:
-		for _, prefix := range toPrefixSets(prefixes) {
-			envVarName := toEnvVarName([]string{prefix}, fieldName)
-			if value, ok := m.envVars[envVarName]; ok {
-				return true, envVarName, value
-			}
-		}
+	envVarName := toEnvVarName(prefixes, fieldName)
+	if value, ok := m.envVars[envVarName]; ok {
+		return true, envVarName, value
 	}
 
 	return false, "", ""
 }
 
-func (m *matcher) getMapKey(matchType matchType, fieldName, envVarName string, prefixes []string) string {
+func (m *matcher) getMapKey(fieldName, envVarName string, prefixes []string) string {
 	fieldName = strings.ToUpper(fieldName)
 
-	switch matchType {
-	case exactMatch:
-		if strings.HasSuffix(envVarName, fieldName) {
-			return strings.ToLower(
-				strings.TrimSuffix(envVarName, fmt.Sprintf("_%s", fieldName)),
-			)
-		}
-	case prefixMatch:
-		prefix := strings.ToUpper(strings.Join(prefixes, "_"))
+	prefix := strings.ToUpper(strings.Join(prefixes, "_"))
 
-		if !strings.HasPrefix(envVarName, prefix) ||
-			!strings.HasSuffix(envVarName, fieldName) {
-			return ""
-		}
-
-		return strings.ToLower(
-			strings.TrimSuffix(
-				strings.TrimPrefix(envVarName, fmt.Sprintf("%s_", prefix)),
-				fmt.Sprintf("_%s", fieldName),
-			),
-		)
-	case bestMatch:
-		for _, prefix := range toPrefixSets(prefixes) {
-			prefix = strings.ToUpper(prefix)
-			if strings.HasPrefix(envVarName, prefix) &&
-				strings.HasSuffix(envVarName, fieldName) {
-				return strings.ToLower(
-					strings.TrimSuffix(
-						strings.TrimPrefix(envVarName, fmt.Sprintf("%s_", prefix)),
-						fmt.Sprintf("_%s", fieldName),
-					),
-				)
-			}
-		}
+	if !strings.HasPrefix(envVarName, prefix) ||
+		!strings.HasSuffix(envVarName, fieldName) {
+		return ""
 	}
 
-	return ""
+	return strings.ToLower(
+		strings.TrimSuffix(
+			strings.TrimPrefix(envVarName, fmt.Sprintf("%s_", prefix)),
+			fmt.Sprintf("_%s", fieldName),
+		),
+	)
 }
 
 func (m *matcher) expandValue(value string) string {
@@ -389,10 +298,6 @@ func (m *matcher) parseOptions(tags map[string]tag.Tag) map[string]string {
 	opts := map[string]string{}
 
 	// first check for first class tags
-
-	if tag, ok := tags[m.matchTag]; ok {
-		opts[m.matchTag] = tag.Value
-	}
 
 	if tag, ok := tags[m.requiredTag]; ok {
 		opts[m.requiredTag] = tag.Value
@@ -416,10 +321,6 @@ func (m *matcher) parseOptions(tags map[string]tag.Tag) map[string]string {
 
 	// then check for env tag options
 	if tagName, ok := tags[m.tagName]; ok {
-		if match, ok := tagName.Options[m.matchTag]; ok {
-			opts[m.matchTag] = match
-		}
-
 		if value, ok := tagName.Options[m.defaultTag]; ok {
 			opts[m.defaultTag] = value
 		}
@@ -442,33 +343,6 @@ func (m *matcher) parseOptions(tags map[string]tag.Tag) map[string]string {
 	}
 
 	return opts
-}
-
-func (m *matcher) getMatchType(opts map[string]string) matchType {
-	if match, ok := opts[m.matchTag]; ok {
-		return matchType(match)
-	}
-
-	return m.defaultMatch
-}
-
-func toPrefixSets(prefixes []string) []string {
-	result := make([]string, 0, len(prefixes)+1)
-
-	// Add the full prefix
-	if len(prefixes) > 1 {
-		result = append(result, strings.Join(prefixes, "_"))
-	}
-
-	// Add all partial prefixes, from longest to shortest
-	for i := len(prefixes); i > 0; i-- {
-		result = append(result, prefixes[i-1])
-	}
-
-	// Add the empty prefix
-	result = append(result, "")
-
-	return result
 }
 
 func toEnvVarName(prefixes []string, tag string) string {

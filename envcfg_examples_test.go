@@ -138,36 +138,6 @@ func ExampleParse_fieldMatching() {
 	// Output: {FieldName:field name SnakeFieldName:snake field name TomlFieldName:toml override EnvFieldName:env field name}
 }
 
-func ExampleParse_matchingStrategies() {
-	os.Setenv("INNER_INNER_PREFIX_MATCH", "prefix match")
-	os.Setenv("INNER_BEST_MATCH", "best match")
-	os.Setenv("EXACT_MATCH", "exact match")
-
-	defer os.Clearenv()
-
-	type InnerInner struct {
-		PrefixMatch string `match:"prefix"`
-		BestMatch   string `match:"best"`
-		ExactMatch  string `match:"exact"`
-	}
-
-	type Inner struct {
-		Inner InnerInner
-	}
-
-	type Config struct {
-		Inner
-	}
-
-	cfg := Config{}
-	if err := envcfg.Parse(&cfg); err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("%+v\n", cfg)
-	// Output: {Inner:{Inner:{PrefixMatch:prefix match BestMatch:best match ExactMatch:exact match}}}
-}
-
 func ExampleParse_tags() {
 	tmpfile, err := os.CreateTemp("", "test.txt")
 	if err != nil {

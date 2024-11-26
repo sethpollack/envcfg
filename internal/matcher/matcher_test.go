@@ -75,7 +75,7 @@ func TestGetValue(t *testing.T) {
 			Expected:  "foo",
 		},
 		{
-			name:      "env tag with no exactmatch",
+			name:      "env tag with no match",
 			FieldName: "FooBar",
 			Tag:       `env:"FOO_BAR"`,
 			Prefixes:  []string{"APP"},
@@ -99,22 +99,6 @@ func TestGetValue(t *testing.T) {
 			EnvVars:     map[string]string{"APP_FOO_BAR": ""},
 			Expected:    "",
 			ExpectedErr: fmt.Errorf("environment variable APP_FOO_BAR is empty"),
-		},
-		{
-			name:      "env tag with best match",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR,match=best"`,
-			Prefixes:  []string{"APP", "OTHER"},
-			EnvVars:   map[string]string{"OTHER_FOO_BAR": "best"},
-			Expected:  "best",
-		},
-		{
-			name:      "env tag with exact match",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR,match=exact"`,
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"FOO_BAR": "exact"},
-			Expected:  "exact",
 		},
 		{
 			name:      "env tag with expand",
@@ -286,7 +270,7 @@ func TestGetMapKeys(t *testing.T) {
 			Expected:  []string{"foo_bar", "foo_bar_baz"},
 		},
 		{
-			name:      "map of structs, prefix match",
+			name:      "map of structs",
 			FieldName: "FooBar",
 			Type: reflect.TypeOf(map[string]struct {
 				Name string `env:"NAME"`
@@ -294,28 +278,6 @@ func TestGetMapKeys(t *testing.T) {
 			Tag:      `env:"FOO_BAR"`,
 			Prefixes: []string{"APP"},
 			EnvVars:  map[string]string{"APP_FOO_BAR_PRIMARY_NAME": "foo", "APP_FOO_BAR_SECONDARY_NAME": "baz"},
-			Expected: []string{"primary", "secondary"},
-		},
-		{
-			name:      "map of structs, exact match",
-			FieldName: "FooBar",
-			Type: reflect.TypeOf(map[string]struct {
-				Name string `env:"NAME,match=exact"`
-			}{}),
-			Tag:      `env:"FOO_BAR"`,
-			Prefixes: []string{"APP"},
-			EnvVars:  map[string]string{"PRIMARY_NAME": "foo", "SECONDARY_NAME": "baz"},
-			Expected: []string{"primary", "secondary"},
-		},
-		{
-			name:      "map of structs, best match",
-			FieldName: "FooBar",
-			Type: reflect.TypeOf(map[string]struct {
-				Name string `env:"NAME,match=best"`
-			}{}),
-			Tag:      `env:"FOO_BAR"`,
-			Prefixes: []string{"APP", "OTHER"},
-			EnvVars:  map[string]string{"OTHER_PRIMARY_NAME": "foo", "OTHER_SECONDARY_NAME": "baz"},
 			Expected: []string{"primary", "secondary"},
 		},
 		{

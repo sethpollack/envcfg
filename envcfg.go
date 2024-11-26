@@ -148,32 +148,6 @@ func WithNotEmptyTag(tag string) Option {
 	}
 }
 
-// WithMatchTag sets the struct tag name used for nested struct prefix matching.
-// The default tag name is "match".
-func WithMatchTag(tag string) Option {
-	return func(e *envcfg) {
-		e.opts = append(e.opts, matcher.WithMatchTag(tag))
-	}
-}
-
-// WithExactMatch enables exact matching mode for environment variables.
-// Only environment variables that exactly match the field path will be used.
-// By default, prefix matching is used.
-func WithExactMatch() Option {
-	return func(e *envcfg) {
-		e.opts = append(e.opts, matcher.WithExactMatch())
-	}
-}
-
-// WithBestMatch enables best match mode for environment variables.
-// When multiple environment variables match a field, the most specific match will be used.
-// By default, the first match is used.
-func WithBestMatch() Option {
-	return func(e *envcfg) {
-		e.opts = append(e.opts, matcher.WithBestMatch())
-	}
-}
-
 // WithLoader sets a custom loader for retrieving environment variables.
 // The default loader supports configuration via WithEnvVarsSource, WithOsEnvSource,
 // WithFileSource, or WithDefaults, and will fall back to OS environment if

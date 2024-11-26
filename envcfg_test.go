@@ -664,9 +664,6 @@ func TestParseURL(t *testing.T) {
 	type Inner struct {
 		Url  url.URL
 		Urls []url.URL
-
-		MatchExactUrl  url.URL   `env:",match=exact"`
-		MatchExactUrls []url.URL `env:",match=exact"`
 	}
 
 	type Config struct {
@@ -682,10 +679,6 @@ func TestParseURL(t *testing.T) {
 	t.Setenv("NESTED_URLS_0", "http://nested.com")
 	t.Setenv("NESTED_URLS_1", "https://nested.com")
 
-	t.Setenv("MATCH_EXACT_URL", "http://exact.com")
-	t.Setenv("MATCH_EXACT_URLS_0", "http://exact.com")
-	t.Setenv("MATCH_EXACT_URLS_1", "https://exact.com")
-
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
@@ -698,11 +691,6 @@ func TestParseURL(t *testing.T) {
 			Urls: []url.URL{
 				{Scheme: "http", Host: "nested.com"},
 				{Scheme: "https", Host: "nested.com"},
-			},
-			MatchExactUrl: url.URL{Scheme: "http", Host: "exact.com"},
-			MatchExactUrls: []url.URL{
-				{Scheme: "http", Host: "exact.com"},
-				{Scheme: "https", Host: "exact.com"},
 			},
 		},
 	}, cfg)

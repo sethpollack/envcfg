@@ -16,7 +16,7 @@
 ## Key Features
 - 🚀 Intuitive struct parsing with minimal boilerplate
 - 📦 Zero dependencies (TODO)
-- 🎯 Flexible prefix matching for nested fields
+- 🎯 Automatic prefix matching for nested fields
 - 🧩 First-class support for complex data structures:
     - Nested structs
     - Slices: delimited, indexed, structs
@@ -32,7 +32,6 @@
   - [Match Options](#match-options)
   - [Init Options](#init-options)
 - [Field Name Mapping](#field-name-mapping)
-- [Nested Field Prefix Matching](#nested-field-prefix-matching)
 - [Functions](#functions)
   - [Configuration Options](#configuration-options)
     - [Components](#components)
@@ -231,15 +230,9 @@ Config:
 | `file` | Load value from file | `false` | `file:"true"` | `env:",file"` |
 | `delim` | Delimiter for array values | `,` | `delim:";"` | `env:",delim=;"` |
 | `sep` | Separator for map key-value pairs | `:` | `sep:"="` | `env:",sep="` |
-| `match` | Match strategy for environment variables | `prefix` | `match:"exact"` | `env:",match=exact"` |
 | `init` | Initialize nil pointers | `values` | `init:"always"` | `env:",init=always"` |
 | `ignore` | Ignore field | `false` | `ignore:"true"` | `env:",ignore"` or `env:"-"` |
 | `decodeunset` | Decode unset environment variables | `false` | `decodeunset:"true"` | `env:",decodeunset"` |
-
-### Match Options
-- `prefix` - Match variables with field's prefix (default)
-- `exact` - Match only exact variable names
-- `best` - Try prefix match, then exact match
 
 ### Init Options
 - `values` - Initialize when values are present (default)
@@ -272,24 +265,6 @@ type Config struct {
 > [!TIP]
 > All environment variable matching is case __insensitive__.
 
-## Nested Field Prefix Matching
-
-`envcfg` supports three strategies for matching environment variable prefixes to struct fields: `prefix`, `exact`, and `best`:
-
-```go
-type Config struct {
-    Database struct {
-        Host string // prefix (default) - only matches DATABASE_HOST
-        Port int `match:"exact"` // exact - only matches PORT
-        Name string `match:"best"` // best - tries DATABASE_NAME, then NAME
-    }
-}
-```
-
-> [!NOTE]
-> The matching strategy can be set globally with `WithExactMatch` or `WithBestMatch` or per-field using the `match` tag option.
-
-
 ## Functions
  - `Parse` - Parse environment variables into a struct pointer
  - `MustParse` - Same as `Parse`, but panics on error
@@ -303,7 +278,7 @@ type Config struct {
 
 #### Components
 
-| Tag | Description |
+| Option | Description |
 |--------|-------------|
 | `WithParser` | Overrides the default parser |
 | `WithMatcher` | Overrides the default matcher |
@@ -312,7 +287,7 @@ type Config struct {
 
 #### Tags
 
-| Tag | Description | Default |
+| Option | Description | Default |
 |--------|-------------|---------|
 | `WithTagName` | Tag name for environment variables | `env` |
 | `WithDelimiterTag` | Tag name for delimiter | `delim` |
@@ -324,12 +299,11 @@ type Config struct {
 | `WithNotEmptyTag` | Tag name for not empty variables | `notEmpty` |
 | `WithRequiredTag` | Tag name for required variables | `required` |
 | `WithIgnoreTag` | Tag name for ignored variables | `ignore` |
-| `WithMatchTag` | Tag name for match strategy | `match` |
 | `WithInitTag` | Tag name for initialization strategy | `init` |
 
 #### Walker
 
-| Tag | Description | Default |
+| Option | Description | Default |
 |--------|-------------|---------|
 | `WithDelimiter` | Sets the default delimiter for array and map values | `,` |
 | `WithSeparator` | Sets the default separator for map key-value pairs | `:` |
@@ -339,7 +313,7 @@ type Config struct {
 
 #### Default Parser
 
-| Tag | Description |
+| Option | Description |
 |--------|-------------|
 | `WithTypeParser` | Sets a custom type parser |
 | `WithTypeParsers` | Sets custom type parsers |
@@ -348,15 +322,13 @@ type Config struct {
 
 #### Default Matcher
 
-| Tag | Description | Default |
+| Option | Description | Default |
 |--------|-------------|---------|
-| `WithExactMatch` | Sets exact match strategy | default strategy is `prefix` |
-| `WithBestMatch` | Sets best match strategy | default strategy is `prefix` |
 | `WithDisableFallback` | Disables fallback to `env` tag value when no other matches are found | `false` |
 
 #### Default Loader
 
-| Tag | Description |
+| Option | Description |
 |--------|-------------|
 | `WithSource` | Adds a custom source to the loader |
 | `WithEnvVarsSource` | Adds environment variables as a source |
