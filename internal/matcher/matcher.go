@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/sethpollack/envcfg/internal/loader"
@@ -105,30 +106,14 @@ func (m *matcher) Build(opts ...any) error {
 	return nil
 }
 
-func (m *matcher) GetValue(rsf reflect.StructField, prefixes []string) (string, bool, error) {
-	parsedTags := tag.ParseTags(rsf)
-	opts := m.parseOptions(parsedTags)
+func (m *matcher) GetValue(path []tag.TagMap) (string, bool, error) {
+	opts := m.parseOptions(path[len(path)-1])
 
-	var foundMatch bool
-	var foundKey string
-	var foundValue string
-
-	for tagName, tag := range parsedTags {
-		if m.disableFallback && m.tagName != tagName {
-			continue
-		}
-
-		found, key, value := m.getValue(tag.Value, prefixes)
-		if found {
-			foundMatch = true
-			foundKey = key
-			foundValue = value
-		}
-	}
+	foundMatch, foundKey, foundValue := m.getValue("", path)
 
 	if !foundMatch {
 		if _, ok := opts[m.requiredTag]; ok {
-			return "", false, fmt.Errorf("required field %s not found", rsf.Name)
+			return "", false, fmt.Errorf("required field %s not found", fieldPath(path))
 		}
 
 		if _, ok := opts[m.defaultTag]; ok {
@@ -165,45 +150,100 @@ func (m *matcher) GetValue(rsf reflect.StructField, prefixes []string) (string, 
 	return foundValue, true, nil
 }
 
-func (m *matcher) GetPrefix(rsf reflect.StructField, prefixes []string) string {
-	parsedTags := tag.ParseTags(rsf)
+func (m *matcher) HasPrefix(path []tag.TagMap) bool {
+	return m.hasPrefix("", path)
+}
 
-	for tagName, tag := range parsedTags {
-		if tag.Value == "" {
-			continue
-		}
+func (m *matcher) GetMapKeys(path []tag.TagMap) []string {
+	if len(path) == 0 {
+		return []string{}
+	}
 
-		if m.disableFallback && m.tagName != tagName {
-			continue
-		}
+	current := path[len(path)-1]
 
-		envVarName := toEnvVarName(prefixes, tag.Value)
-		for key := range m.envVars {
-			if strings.HasPrefix(key, envVarName) {
-				return strings.ToUpper(tag.Value)
+	switch current.Type.Elem().Kind() {
+	case reflect.Struct:
+		return m.getStructMapKeys(path)
+	case reflect.Slice:
+		return m.getSliceMapKeys(path)
+	default:
+		return m.getPrimitiveMapKeys(path)
+	}
+}
+
+func (m *matcher) getPrimitiveMapKeys(path []tag.TagMap) []string {
+	uniqueKeys := make(map[string]struct{})
+
+	for key := range m.envVars {
+		if found, prefix := m.toPrefix(key, "", path); found {
+			if key := m.getMapKey(key, prefix, ""); key != "" {
+				uniqueKeys[key] = struct{}{}
 			}
 		}
 	}
 
-	return strings.ToUpper(rsf.Name)
-}
-
-func (m *matcher) GetMapKeys(rsf reflect.StructField, prefixes []string) []string {
-	rte := rsf.Type.Elem()
-	// if its a map of primitives
-	if rte.Kind() != reflect.Struct {
-		return m.getPrimitiveMapKeys(rsf, prefixes)
+	keys := make([]string, 0, len(uniqueKeys))
+	for key := range uniqueKeys {
+		keys = append(keys, key)
 	}
 
-	return m.getStructMapKeys(rsf, prefixes)
+	return keys
 }
 
-func (m *matcher) getPrimitiveMapKeys(rsf reflect.StructField, prefixes []string) []string {
+func (m *matcher) getMapKey(key, prefix, suffix string) string {
+	if !strings.HasPrefix(key, prefix) {
+		return ""
+	}
+
+	// Get the part after prefix, removing the leading underscore
+	afterPrefix := strings.TrimPrefix(key, fmt.Sprintf("%s_", prefix))
+
+	// First try exact suffix match
+	if strings.HasSuffix(afterPrefix, suffix) {
+		return strings.ToLower(strings.TrimSuffix(afterPrefix, "_"+suffix))
+	}
+
+	// If no exact match, look for suffix elsewhere in the string
+	if idx := strings.Index(afterPrefix, "_"+suffix+"_"); idx >= 0 {
+		return strings.ToLower(afterPrefix[:idx])
+	}
+
+	return ""
+}
+
+func (m *matcher) getSliceMapKeys(path []tag.TagMap) []string {
+	uniqueKeys := make(map[string]struct{})
+
+	for i := 0; ; i++ {
+		found := false
+		for key := range m.envVars {
+			if ok, prefix := m.toPrefix(key, "", path); ok {
+				if mapKey := m.getMapKey(key, prefix, strconv.Itoa(i)); mapKey != "" {
+					uniqueKeys[mapKey] = struct{}{}
+					found = true
+				}
+			}
+		}
+		if !found {
+			break
+		}
+	}
+
+	keys := make([]string, 0, len(uniqueKeys))
+	for key := range uniqueKeys {
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+func (m *matcher) getStructMapKeys(path []tag.TagMap) []string {
 	uniqueKeys := make(map[string]struct{})
 
 	for envVarName := range m.envVars {
-		if key := m.getMapKey("", envVarName, prefixes); key != "" {
-			uniqueKeys[key] = struct{}{}
+		if found, prefix := m.toPrefix(envVarName, "", path); found {
+			if key := m.findLongestMatchingKey(envVarName, prefix, path); key != "" {
+				uniqueKeys[key] = struct{}{}
+			}
 		}
 	}
 
@@ -215,41 +255,32 @@ func (m *matcher) getPrimitiveMapKeys(rsf reflect.StructField, prefixes []string
 	return keys
 }
 
-func (m *matcher) getStructMapKeys(rsf reflect.StructField, prefixes []string) []string {
-	rte := rsf.Type.Elem()
-
-	prefix := m.GetPrefix(rsf, prefixes)
-	uniqueKeys := make(map[string]struct{})
-
-	for envVarName := range m.envVars {
-		if key := m.findLongestMatchingKey(rte, envVarName, append(prefixes, prefix)); key != "" {
-			uniqueKeys[key] = struct{}{}
-		}
-	}
-
-	keys := make([]string, 0, len(uniqueKeys))
-	for key := range uniqueKeys {
-		keys = append(keys, key)
-	}
-
-	return keys
-}
-
-func (m *matcher) findLongestMatchingKey(rte reflect.Type, envVarName string, prefixes []string) string {
+func (m *matcher) findLongestMatchingKey(key, prefix string, path []tag.TagMap) string {
 	bestKey := ""
 	longestMatch := 0
 
-	for i := 0; i < rte.NumField(); i++ {
-		field := rte.Field(i)
+	current := path[len(path)-1]
+
+	for i := 0; i < current.Type.Elem().NumField(); i++ {
+		field := current.Type.Elem().Field(i)
 
 		parsedTags := tag.ParseTags(field)
-		for tagName, tag := range parsedTags {
-			if m.disableFallback && m.tagName != tagName {
+
+		if tag, ok := parsedTags.Tags[m.tagName]; ok {
+			if mapKey := m.getMapKey(key, prefix, strings.ToUpper(tag.Value)); mapKey != "" {
+				if len(tag.Value) > longestMatch {
+					longestMatch = len(tag.Value)
+					bestKey = mapKey
+				}
+			}
+		}
+
+		for tagName, tag := range parsedTags.Tags {
+			if tag.Value == "" || m.isKnownTag(tagName) || m.disableFallback {
 				continue
 			}
 
-			mapKey := m.getMapKey(tag.Value, envVarName, prefixes)
-			if mapKey != "" {
+			if mapKey := m.getMapKey(key, prefix, strings.ToUpper(tag.Value)); mapKey != "" {
 				if len(tag.Value) > longestMatch {
 					longestMatch = len(tag.Value)
 					bestKey = mapKey
@@ -261,66 +292,172 @@ func (m *matcher) findLongestMatchingKey(rte reflect.Type, envVarName string, pr
 	return bestKey
 }
 
-func (m *matcher) getValue(fieldName string, prefixes []string) (bool, string, string) {
-	fieldName = strings.ToUpper(fieldName)
+func (m *matcher) getValue(prefix string, path []tag.TagMap) (bool, string, string) {
+	if len(path) == 0 {
+		envVarName := strings.ToUpper(prefix)
 
-	envVarName := toEnvVarName(prefixes, fieldName)
-	if value, ok := m.envVars[envVarName]; ok {
-		return true, envVarName, value
+		if value, ok := m.envVars[envVarName]; ok {
+			return true, envVarName, value
+		}
+
+		return false, "", ""
+	}
+
+	current, rest := path[0], path[1:]
+
+	if tag, ok := current.Tags[m.tagName]; ok {
+		if prefix == "" {
+			if found, envvar, value := m.getValue(tag.Value, rest); found {
+				return found, envvar, value
+			}
+		} else {
+			if found, envvar, value := m.getValue(fmt.Sprint(prefix, "_", tag.Value), rest); found {
+				return found, envvar, value
+			}
+		}
+	}
+
+	for tagName, tag := range current.Tags {
+		if tag.Value == "" || m.isKnownTag(tagName) || m.disableFallback {
+			continue
+		}
+
+		if prefix == "" {
+			if found, envvar, value := m.getValue(tag.Value, rest); found {
+				return found, envvar, value
+			}
+		} else {
+			if found, envvar, value := m.getValue(fmt.Sprint(prefix, "_", tag.Value), rest); found {
+				return found, envvar, value
+			}
+		}
 	}
 
 	return false, "", ""
 }
 
-func (m *matcher) getMapKey(fieldName, envVarName string, prefixes []string) string {
-	fieldName = strings.ToUpper(fieldName)
+func (m *matcher) hasPrefix(prefix string, path []tag.TagMap) bool {
+	if len(path) == 0 {
+		envVarName := strings.ToUpper(prefix)
 
-	prefix := strings.ToUpper(strings.Join(prefixes, "_"))
+		for env := range m.envVars {
+			if strings.HasPrefix(env, envVarName) {
+				return true
+			}
+		}
 
-	if !strings.HasPrefix(envVarName, prefix) ||
-		!strings.HasSuffix(envVarName, fieldName) {
-		return ""
+		return false
 	}
 
-	return strings.ToLower(
-		strings.TrimSuffix(
-			strings.TrimPrefix(envVarName, fmt.Sprintf("%s_", prefix)),
-			fmt.Sprintf("_%s", fieldName),
-		),
-	)
+	current, rest := path[0], path[1:]
+
+	if tag, ok := current.Tags[m.tagName]; ok {
+		if prefix == "" {
+			if found := m.hasPrefix(tag.Value, rest); found {
+				return found
+			}
+		} else {
+			if found := m.hasPrefix(fmt.Sprint(prefix, "_", tag.Value), rest); found {
+				return found
+			}
+		}
+	}
+
+	for tagName, tag := range current.Tags {
+		if tag.Value == "" || m.isKnownTag(tagName) {
+			continue
+		}
+
+		if prefix == "" {
+			if found := m.hasPrefix(tag.Value, rest); found {
+				return found
+			}
+		} else {
+			if found := m.hasPrefix(fmt.Sprint(prefix, "_", tag.Value), rest); found {
+				return found
+			}
+		}
+	}
+
+	return false
+}
+
+func (m *matcher) toPrefix(key, prefix string, path []tag.TagMap) (bool, string) {
+	if len(path) == 0 {
+		envVarPrefix := strings.ToUpper(prefix)
+		if strings.HasPrefix(key, envVarPrefix) {
+			return true, envVarPrefix
+		}
+
+		return false, ""
+	}
+
+	current, rest := path[0], path[1:]
+
+	if tag, ok := current.Tags[m.tagName]; ok {
+		var newPrefix string
+		if prefix == "" {
+			newPrefix = tag.Value
+		} else {
+			newPrefix = fmt.Sprint(prefix, "_", tag.Value)
+		}
+
+		if found, match := m.toPrefix(key, newPrefix, rest); found {
+			return found, match
+		}
+	}
+
+	for tagName, tag := range current.Tags {
+		if tag.Value == "" || m.isKnownTag(tagName) {
+			continue
+		}
+
+		var newPrefix string
+		if prefix == "" {
+			newPrefix = tag.Value
+		} else {
+			newPrefix = fmt.Sprint(prefix, "_", tag.Value)
+		}
+
+		if found, match := m.toPrefix(key, newPrefix, rest); found {
+			return found, match
+		}
+	}
+
+	return false, ""
 }
 
 func (m *matcher) expandValue(value string) string {
 	return os.Expand(value, func(s string) string { return m.envVars[s] })
 }
 
-func (m *matcher) parseOptions(tags map[string]tag.Tag) map[string]string {
+func (m *matcher) parseOptions(tm tag.TagMap) map[string]string {
 	opts := map[string]string{}
 
 	// first check for first class tags
 
-	if tag, ok := tags[m.requiredTag]; ok {
+	if tag, ok := tm.Tags[m.requiredTag]; ok {
 		opts[m.requiredTag] = tag.Value
 	}
 
-	if tag, ok := tags[m.defaultTag]; ok {
+	if tag, ok := tm.Tags[m.defaultTag]; ok {
 		opts[m.defaultTag] = tag.Value
 	}
 
-	if tag, ok := tags[m.expandTag]; ok {
+	if tag, ok := tm.Tags[m.expandTag]; ok {
 		opts[m.expandTag] = tag.Value
 	}
 
-	if tag, ok := tags[m.notEmptyTag]; ok {
+	if tag, ok := tm.Tags[m.notEmptyTag]; ok {
 		opts[m.notEmptyTag] = tag.Value
 	}
 
-	if tag, ok := tags[m.fileTag]; ok {
+	if tag, ok := tm.Tags[m.fileTag]; ok {
 		opts[m.fileTag] = tag.Value
 	}
 
 	// then check for env tag options
-	if tagName, ok := tags[m.tagName]; ok {
+	if tagName, ok := tm.Tags[m.tagName]; ok {
 		if value, ok := tagName.Options[m.defaultTag]; ok {
 			opts[m.defaultTag] = value
 		}
@@ -345,17 +482,26 @@ func (m *matcher) parseOptions(tags map[string]tag.Tag) map[string]string {
 	return opts
 }
 
-func toEnvVarName(prefixes []string, tag string) string {
-	if len(prefixes) == 0 {
-		return strings.ToUpper(tag)
+func (m *matcher) isKnownTag(tagName string) bool {
+	tags := map[string]bool{
+		m.tagName:     true,
+		m.requiredTag: true,
+		m.defaultTag:  true,
+		m.expandTag:   true,
+		m.notEmptyTag: true,
+		m.fileTag:     true,
 	}
 
-	prefix := strings.Join(prefixes, "_")
-	if prefix == "" {
-		return strings.ToUpper(tag)
+	_, ok := tags[tagName]
+	return ok
+}
+
+func fieldPath(path []tag.TagMap) string {
+	prefix := path[0].FieldName
+
+	for _, tm := range path[1:] {
+		prefix += fmt.Sprintf(".%s", tm.FieldName)
 	}
 
-	return strings.ToUpper(
-		fmt.Sprintf("%s_%s", prefix, tag),
-	)
+	return prefix
 }

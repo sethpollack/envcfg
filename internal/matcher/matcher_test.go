@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/sethpollack/envcfg/internal/loader"
+	"github.com/sethpollack/envcfg/internal/tag"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -23,88 +24,166 @@ func TestGetValue(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	tt := []struct {
-		name      string
-		FieldName string
-		Tag       string
-		Prefixes  []string
-		EnvVars   map[string]string
+		name    string
+		Path    []tag.TagMap
+		EnvVars map[string]string
 
 		Expected    string
 		ExpectedErr error
 	}{
 		{
-			name:      "not found",
-			FieldName: "FooBar",
-			Prefixes:  []string{"APP"},
-			Expected:  "",
+			name: "not found",
+			Path: []tag.TagMap{
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR"},
+					},
+				},
+			},
+			Expected: "",
 		},
 		{
-			name:      "no env tag",
-			FieldName: "FooBar",
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"APP_FOO_BAR": "foo"},
-			Expected:  "foo",
+			name: "simple",
+			Path: []tag.TagMap{
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"FOO_BAR": "foo"},
+			Expected: "foo",
 		},
 		{
-			name:      "no env tag with no prefix",
-			FieldName: "FooBar",
-			EnvVars:   map[string]string{"FOO_BAR": "foo"},
-			Expected:  "foo",
+			name: "nested",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"APP_FOO_BAR": "foo"},
+			Expected: "foo",
 		},
 		{
-			name:      "env tag with no options",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR"`,
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"APP_FOO_BAR": "foo"},
-			Expected:  "foo",
+			name: "deep nested",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "Other",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "OTHER"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"APP_OTHER_FOO_BAR": "foo"},
+			Expected: "foo",
 		},
 		{
-			name:      "env tag with no prefix",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR"`,
-			EnvVars:   map[string]string{"FOO_BAR": "foo"},
-			Expected:  "foo",
+			name: "fallback",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "FooBar"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"APP_FOOBAR": "foo"},
+			Expected: "foo",
 		},
 		{
-			name:      "env tag with multiple prefixes",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR"`,
-			Prefixes:  []string{"APP", "OTHER"},
-			EnvVars:   map[string]string{"APP_OTHER_FOO_BAR": "foo"},
-			Expected:  "foo",
-		},
-		{
-			name:      "env tag with no match",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR"`,
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"FOO_BAR": "foo"},
-			Expected:  "",
-		},
-		{
-			name:        "env tag with required",
-			FieldName:   "FooBar",
-			Tag:         `env:"FOO_BAR,required"`,
-			Prefixes:    []string{"APP"},
-			EnvVars:     map[string]string{"FOO_BAR": "foo"},
-			Expected:    "",
+			name: "required",
+			Path: []tag.TagMap{
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"required": "true"}},
+					},
+				},
+			},
 			ExpectedErr: fmt.Errorf("required field FooBar not found"),
 		},
 		{
-			name:        "env tag with notempty",
-			FieldName:   "FooBar",
-			Tag:         `env:"FOO_BAR,notempty"`,
-			Prefixes:    []string{"APP"},
+			name: "nested required",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"required": "true"}},
+					},
+				},
+			},
+			ExpectedErr: fmt.Errorf("required field App.FooBar not found"),
+		},
+		{
+			name: "notempty",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"notempty": "true"}},
+					},
+				},
+			},
 			EnvVars:     map[string]string{"APP_FOO_BAR": ""},
-			Expected:    "",
 			ExpectedErr: fmt.Errorf("environment variable APP_FOO_BAR is empty"),
 		},
 		{
-			name:      "env tag with expand",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR,expand"`,
-			Prefixes:  []string{"APP"},
+			name: "expand",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"expand": "true"}},
+					},
+				},
+			},
 			EnvVars: map[string]string{
 				"OTHER_VAR":   "other",
 				"APP_FOO_BAR": "${OTHER_VAR}",
@@ -112,50 +191,80 @@ func TestGetValue(t *testing.T) {
 			Expected: "other",
 		},
 		{
-			name:      "env tag with default",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR,default=foo"`,
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{},
-			Expected:  "foo",
+			name: "default",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"default": "foo"}},
+					},
+				},
+			},
+			Expected: "foo",
 		},
 		{
-			name:      "env tag with default + expand",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR,default=${OTHER_VAR},expand"`,
-			Prefixes:  []string{"APP"},
+			name: "default + expand",
+			Path: []tag.TagMap{
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"default": "${OTHER_VAR}", "expand": "true"}},
+					},
+				},
+			},
 			EnvVars: map[string]string{
 				"OTHER_VAR": "other",
 			},
 			Expected: "other",
 		},
 		{
-			name:      "env tag with file",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR,file"`,
-			Prefixes:  []string{"APP"},
+			name: "file",
+			Path: []tag.TagMap{
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"file": "true"}},
+					},
+				},
+			},
 			EnvVars: map[string]string{
-				"APP_FOO_BAR": tempFile.Name(),
+				"FOO_BAR": tempFile.Name(),
 			},
 			Expected: "${OTHER_VAR}",
 		},
 		{
-			name:      "env tag with expand + file",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR,expand,file"`,
-			Prefixes:  []string{"APP"},
+			name: "expand + file",
+			Path: []tag.TagMap{
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"file": "true", "expand": "true"}},
+					},
+				},
+			},
 			EnvVars: map[string]string{
-				"OTHER_VAR":   "other",
-				"APP_FOO_BAR": tempFile.Name(),
+				"OTHER_VAR": "other",
+				"FOO_BAR":   tempFile.Name(),
 			},
 			Expected: "other",
 		},
 		{
-			name:        "invalid file path",
-			FieldName:   "FooBar",
-			Tag:         `env:"FOO_BAR,file"`,
-			Prefixes:    []string{"APP"},
-			EnvVars:     map[string]string{"APP_FOO_BAR": "invalid"},
+			name: "invalid file path",
+			Path: []tag.TagMap{
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR", Options: map[string]string{"file": "true"}},
+					},
+				},
+			},
+			EnvVars:     map[string]string{"FOO_BAR": "invalid"},
 			ExpectedErr: fmt.Errorf("open invalid: no such file or directory"),
 		},
 	}
@@ -167,13 +276,8 @@ func TestGetValue(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			actual, _, err := m.GetValue(
-				reflect.StructField{
-					Name: tc.FieldName,
-					Tag:  reflect.StructTag(tc.Tag),
-				},
-				tc.Prefixes,
-			)
+			actual, _, err := m.GetValue(tc.Path)
+
 			if tc.ExpectedErr != nil {
 				assert.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {
@@ -185,133 +289,240 @@ func TestGetValue(t *testing.T) {
 	}
 }
 
-func TestGetPrefix(t *testing.T) {
+func TestHasPrefix(t *testing.T) {
 	tt := []struct {
-		name      string
-		FieldName string
-		Tag       string
-		Prefixes  []string
-		EnvVars   map[string]string
-
-		Expected    string
-		ExpectedErr error
+		Name     string
+		Path     []tag.TagMap
+		EnvVars  map[string]string
+		Expected bool
 	}{
 		{
-			name:      "has env tag",
-			FieldName: "FooBar",
-			Tag:       `env:"FOO_BAR"`,
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"APP_FOO_BAR": "foo"},
-			Expected:  "FOO_BAR",
+			Name: "not found",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "App"},
+					},
+				},
+			},
+			Expected: false,
 		},
 		{
-			name:      "no env tag",
-			FieldName: "FooBar",
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"APP_FOOBAR": "foo"},
-			Expected:  "FOOBAR",
+			Name: "found",
+			Path: []tag.TagMap{
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"FOO_BAR": "foo"},
+			Expected: true,
 		},
 		{
-			name:      "no match, fallback to fieldName",
-			FieldName: "FooBar",
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"FOOBAR": "foo"},
-			Expected:  "FOOBAR",
+			Name: "fallback",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "App"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "FooBar"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"APP_FOOBAR": "foo"},
+			Expected: true,
+		},
+		{
+			Name: "fallback mixed",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"struct": {Name: "struct", Value: "App"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"struct_snake": {Name: "struct_snake", Value: "foo_bar"},
+					},
+				},
+				{
+					FieldName: "Baz",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "custom"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"APP_FOO_BAR_CUSTOM": "foo"},
+			Expected: true,
+		},
+		{
+			Name: "nested",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"APP_FOO_BAR": "foo"},
+			Expected: true,
+		},
+		{
+			Name: "complex",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "Slice",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "SLICE"},
+					},
+				},
+				{
+					FieldName: "0",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "0"},
+					},
+				},
+				{
+					FieldName: "FooBar",
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "FOO_BAR"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"APP_SLICE_0_FOO_BAR": "foo"},
+			Expected: true,
 		},
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.Name, func(t *testing.T) {
 			m := New()
 			if err := m.Build(loader.WithEnvVarsSource(tc.EnvVars)); err != nil {
 				assert.NoError(t, err)
 			}
 
-			actual := m.GetPrefix(
-				reflect.StructField{
-					Name: tc.FieldName,
-					Tag:  reflect.StructTag(tc.Tag),
-				},
-				tc.Prefixes,
-			)
-
-			assert.Equal(t, tc.Expected, actual)
+			assert.Equal(t, tc.Expected, m.HasPrefix(tc.Path))
 		})
 	}
 }
 
 func TestGetMapKeys(t *testing.T) {
 	tt := []struct {
-		name      string
-		FieldName string
-		Type      reflect.Type
-		Tag       string
-		Prefixes  []string
-		EnvVars   map[string]string
-
+		Name     string
+		Path     []tag.TagMap
+		EnvVars  map[string]string
 		Expected []string
 	}{
 		{
-			name:      "map of strings",
-			FieldName: "FooBar",
-			Type:      reflect.TypeOf(map[string]string{}),
-			Tag:       `env:"FOO_BAR"`,
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"APP_FOO_BAR": "foo", "APP_FOO_BAR_BAZ": "baz"},
-			Expected:  []string{"foo_bar", "foo_bar_baz"},
+			Name: "simple",
+			Path: []tag.TagMap{
+				{
+					FieldName: "Map",
+					Type:      reflect.TypeOf(map[string]string{}),
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "MAP"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"MAP_FOO_BAR": "foo"},
+			Expected: []string{"foo_bar"},
 		},
 		{
-			name:      "map of ints",
-			FieldName: "FooBar",
-			Type:      reflect.TypeOf(map[string]int{}),
-			Tag:       `env:"FOO_BAR"`,
-			Prefixes:  []string{"APP"},
-			EnvVars:   map[string]string{"APP_FOO_BAR": "1", "APP_FOO_BAR_BAZ": "2"},
-			Expected:  []string{"foo_bar", "foo_bar_baz"},
+			Name: "nested",
+			Path: []tag.TagMap{
+				{
+					FieldName: "App",
+					Type:      reflect.TypeOf(map[string]string{}),
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "APP"},
+					},
+				},
+				{
+					FieldName: "Map",
+					Type:      reflect.TypeOf(map[string]string{}),
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "MAP"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"APP_MAP_FOO_BAR_BAZ": "foo"},
+			Expected: []string{"foo_bar_baz"},
 		},
 		{
-			name:      "map of structs",
-			FieldName: "FooBar",
-			Type: reflect.TypeOf(map[string]struct {
-				Name string `env:"NAME"`
-			}{}),
-			Tag:      `env:"FOO_BAR"`,
-			Prefixes: []string{"APP"},
-			EnvVars:  map[string]string{"APP_FOO_BAR_PRIMARY_NAME": "foo", "APP_FOO_BAR_SECONDARY_NAME": "baz"},
-			Expected: []string{"primary", "secondary"},
+			Name: "map of structs",
+			Path: []tag.TagMap{
+				{
+					FieldName: "Map",
+					Type:      reflect.TypeOf(map[string]struct{ Key string }{}),
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "MAP"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"MAP_FOO_KEY": "foo", "MAP_BAZ_KEY": "baz"},
+			Expected: []string{"foo", "baz"},
 		},
 		{
-			name:      "overlaping keys",
-			FieldName: "FooBar",
-			Type: reflect.TypeOf(map[string]struct {
-				Key           string `env:"KEY"`
-				OtherKey      string `env:"OTHER_KEY"`
-				OtherOtherKey string `env:"OTHER_OTHER_KEY"`
-			}{}),
-			Tag:      `env:"FOO_BAR"`,
-			Prefixes: []string{},
-			EnvVars:  map[string]string{"FOO_BAR_PRIMARY_KEY": "", "FOO_BAR_SECONDARY_OTHER_KEY": "", "FOO_BAR_THIRD_OTHER_OTHER_KEY": ""},
-			Expected: []string{"primary", "secondary", "third"},
+			Name: "map of slices",
+			Path: []tag.TagMap{
+				{
+					FieldName: "Map",
+					Type:      reflect.TypeOf(map[string][]string{}),
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "MAP"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"MAP_SLICE_0": "foo", "MAP_SLICE_1": "bar"},
+			Expected: []string{"slice"},
+		},
+		{
+			Name: "map of slices of structs",
+			Path: []tag.TagMap{
+				{
+					FieldName: "Map",
+					Type:      reflect.TypeOf(map[string][]struct{ Key string }{}),
+					Tags: map[string]tag.Tag{
+						"env": {Name: "env", Value: "MAP"},
+					},
+				},
+			},
+			EnvVars:  map[string]string{"MAP_SLICE_0_KEY": "foo", "MAP_SLICE_1_KEY": "bar"},
+			Expected: []string{"slice"},
 		},
 	}
 
 	for _, tc := range tt {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.Name, func(t *testing.T) {
 			m := New()
 			if err := m.Build(loader.WithEnvVarsSource(tc.EnvVars)); err != nil {
 				assert.NoError(t, err)
 			}
 
-			actual := m.GetMapKeys(
-				reflect.StructField{
-					Type: tc.Type,
-					Name: tc.FieldName,
-					Tag:  reflect.StructTag(tc.Tag),
-				},
-				tc.Prefixes,
-			)
-
-			assert.ElementsMatch(t, tc.Expected, actual)
+			assert.ElementsMatch(t, tc.Expected, m.GetMapKeys(tc.Path))
 		})
 	}
 }

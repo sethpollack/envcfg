@@ -22,9 +22,9 @@ type Parser interface {
 }
 
 type Matcher interface {
-	GetPrefix(reflect.StructField, []string) string
-	GetValue(reflect.StructField, []string) (string, bool, error)
-	GetMapKeys(reflect.StructField, []string) []string
+	HasPrefix(path []tag.TagMap) bool
+	GetValue(path []tag.TagMap) (string, bool, error)
+	GetMapKeys(path []tag.TagMap) []string
 	Build(opts ...any) error
 }
 
@@ -170,10 +170,10 @@ func (w *walker) Walk(v any) error {
 		return fmt.Errorf("expected a pointer to a struct, got %T", v)
 	}
 
-	return w.walkStruct(elem)
+	return w.walkStruct(elem, []tag.TagMap{})
 }
 
-func (w *walker) walkStruct(rv reflect.Value, pfx ...string) error {
+func (w *walker) walkStruct(rv reflect.Value, path []tag.TagMap) error {
 	rt := rv.Type()
 	// Iterate over each field in the struct.
 	for i := 0; i < rt.NumField(); i++ {
@@ -183,7 +183,10 @@ func (w *walker) walkStruct(rv reflect.Value, pfx ...string) error {
 			continue // Skip unexported fields that cannot be set.
 		}
 
-		if err := w.walkStructField(rf, rt.Field(i), pfx...); err != nil {
+		fieldTags := tag.ParseTags(rt.Field(i))
+		fieldPath := append(path, fieldTags)
+
+		if err := w.walkStructField(rf, fieldPath); err != nil {
 			return err
 		}
 	}
@@ -191,11 +194,11 @@ func (w *walker) walkStruct(rv reflect.Value, pfx ...string) error {
 	return nil
 }
 
-func (w *walker) walkStructField(rv reflect.Value, rsf reflect.StructField, pfx ...string) error {
-	tags := tag.ParseTags(rsf)
+func (w *walker) walkStructField(rv reflect.Value, path []tag.TagMap) error {
+	current := path[len(path)-1]
 
 	// If the field is ignored, skip it.
-	if w.parseIgnoreOption(tags) {
+	if w.parseIgnoreOption(current.Tags) {
 		return nil
 	}
 
@@ -207,132 +210,101 @@ func (w *walker) walkStructField(rv reflect.Value, rsf reflect.StructField, pfx 
 	}
 
 	if w.hasParserOrSetter(temp, temp.Type()) {
-		if err := w.parseStructField(temp, rsf, pfx...); err != nil {
+		if err := w.parseStructField(temp, path); err != nil {
 			return err
 		}
 	} else {
-		if err := w.walkNestedStructField(temp, rsf, pfx...); err != nil {
+		if err := w.walkNestedStructField(temp, path); err != nil {
 			return err
 		}
 	}
 
-	return w.setIfNeeded(temp, rv, rsf)
+	return w.setIfNeeded(temp, rv, current.Tags)
 }
 
-func (w *walker) walkNestedStructField(rv reflect.Value, rsf reflect.StructField, pfx ...string) error {
-	prefix := w.matcher.GetPrefix(rsf, pfx)
-
+func (w *walker) walkNestedStructField(rv reflect.Value, path []tag.TagMap) error {
 	switch rv.Kind() {
 	case reflect.Struct:
-		return w.walkStruct(rv, append(pfx, prefix)...)
+		return w.walkStruct(rv, path)
 	case reflect.Slice:
-		return w.walkSlice(rv, rsf, prefix, pfx...)
+		return w.walkSlice(rv, path)
 	case reflect.Map:
-		return w.walkMap(rv, rsf, prefix, pfx...)
+		return w.walkMap(rv, path)
 	}
 
 	return nil
 }
 
-func (w *walker) walkSlice(rv reflect.Value, rsf reflect.StructField, fieldName string, pfx ...string) error {
+func (w *walker) walkSlice(rv reflect.Value, path []tag.TagMap) error {
 	rv.Set(reflect.MakeSlice(rv.Type(), 0, 0))
 
-	value, _, err := w.matcher.GetValue(rsf, pfx)
+	value, found, err := w.matcher.GetValue(path)
 	if err != nil {
 		return err
 	}
 
-	if value != "" {
-		return w.parseDelimitedSlice(rv, rsf, value)
+	if found && value != "" {
+		return w.parseDelimitedSlice(rv, value, path)
 	}
 
 	for i := 0; ; i++ {
 		elem := reflect.New(rv.Type().Elem()).Elem()
 
-		prefix := fmt.Sprintf("%s_%d", fieldName, i)
+		elemPath := append(path, tag.TagMap{
+			FieldName: fmt.Sprintf("%d", i),
+			Tags: map[string]tag.Tag{
+				w.tagName: {Value: fmt.Sprintf("%d", i)},
+			},
+		})
 
-		tmp := reflect.StructField{
-			Name: prefix,
-			Type: elem.Type(),
-			Tag:  rsf.Tag,
-		}
-
-		if elem.Kind() != reflect.Struct {
-			value, found, err := w.matcher.GetValue(tmp, pfx)
-			if err != nil || !found {
-				return err
-			}
-
-			if err := w.parseField(elem, elem.Type(), value); err != nil {
-				return err
-			}
-
-			rv.Set(reflect.Append(rv, elem))
-
-			continue
-		}
-
-		// if it has a parser or setter, parse it
-		if w.hasParserOrSetter(elem, elem.Type()) {
-			if err := w.parseStructField(elem, tmp, pfx...); err != nil {
-				return err
-			}
-
-			if isZero(elem) {
-				return nil
-			}
-
-			rv.Set(reflect.Append(rv, elem))
-
-			continue
-		}
-
-		// If the element is a struct, walk it.
-		if err := w.walkStruct(elem, append(pfx, prefix)...); err != nil {
-			return err
-		}
-
-		if isZero(elem) {
+		if !w.matcher.HasPrefix(elemPath) {
 			return nil
 		}
 
-		rv.Set(reflect.Append(rv, elem))
+		if w.hasParserOrSetter(elem, elem.Type()) {
+			if err := w.parseStructField(elem, elemPath); err != nil {
+				return err
+			}
+		} else {
+			if err := w.walkStructField(elem, elemPath); err != nil {
+				return err
+			}
+		}
 
-		continue
+		rv.Set(reflect.Append(rv, elem))
 	}
 }
 
-func (w *walker) walkMap(rv reflect.Value, rsf reflect.StructField, fieldName string, pfx ...string) error {
+func (w *walker) walkMap(rv reflect.Value, path []tag.TagMap) error {
+	current := path[len(path)-1]
+
 	mapType := rv.Type()
-	elemType := mapType.Elem()
 
 	if rv.IsNil() {
 		rv.Set(reflect.MakeMap(mapType))
 	}
 
-	value, _, err := w.matcher.GetValue(rsf, pfx)
+	value, _, err := w.matcher.GetValue(path)
 	if err != nil {
 		return err
 	}
 
 	if value != "" {
-		return w.parseDelimitedMap(rv, rsf, value)
+		return w.parseDelimitedMap(rv, value, current.Tags)
 	}
 
-	if elemType.Kind() == reflect.Struct {
-		return w.parseMapOfStructs(rv, rsf, fieldName, pfx...)
-	}
-
-	return w.parseMap(rv, rsf, fieldName, pfx...)
+	return w.parseMap(rv, path)
 }
 
-func (w *walker) parseStructField(rv reflect.Value, rsf reflect.StructField, pfx ...string) error {
-	value, found, err := w.matcher.GetValue(rsf, pfx)
+func (w *walker) parseStructField(rv reflect.Value, path []tag.TagMap) error {
+	current := path[len(path)-1]
+
+	value, found, err := w.matcher.GetValue(path)
 	if err != nil {
 		return err
 	}
 
-	decodeUnset := w.parseDecodeUnsetOption(tag.ParseTags(rsf))
+	decodeUnset := w.parseDecodeUnsetOption(current.Tags)
 
 	if !found && !decodeUnset {
 		return nil
@@ -341,9 +313,7 @@ func (w *walker) parseStructField(rv reflect.Value, rsf reflect.StructField, pfx
 	return w.parseField(rv, rv.Type(), value)
 }
 
-func (w *walker) setIfNeeded(temp, rv reflect.Value, rsf reflect.StructField) error {
-	tags := tag.ParseTags(rsf)
-
+func (w *walker) setIfNeeded(temp, rv reflect.Value, tags map[string]tag.Tag) error {
 	initMode := w.parseInitMode(tags)
 
 	if initMode == initNever {
@@ -406,10 +376,12 @@ func (w *walker) parseField(rv reflect.Value, typ reflect.Type, value string) er
 	return nil
 }
 
-func (w *walker) parseDelimitedSlice(rv reflect.Value, rsf reflect.StructField, value string) error {
-	delim := rsf.Tag.Get(w.delimTag)
-	if delim == "" {
-		delim = w.defaultDelim
+func (w *walker) parseDelimitedSlice(rv reflect.Value, value string, path []tag.TagMap) error {
+	current := path[len(path)-1]
+
+	delim := w.defaultDelim
+	if d, ok := current.Tags[w.delimTag]; ok {
+		delim = d.Value
 	}
 
 	elemType := rv.Type().Elem()
@@ -427,19 +399,19 @@ func (w *walker) parseDelimitedSlice(rv reflect.Value, rsf reflect.StructField, 
 	return nil
 }
 
-func (w *walker) parseDelimitedMap(rv reflect.Value, rsf reflect.StructField, value string) error {
+func (w *walker) parseDelimitedMap(rv reflect.Value, value string, tags map[string]tag.Tag) error {
 	mapType := rv.Type()
 	elemType := mapType.Elem()
 	keyType := mapType.Key()
 
-	delim := rsf.Tag.Get(w.delimTag)
-	if delim == "" {
-		delim = w.defaultDelim
+	delim := w.defaultDelim
+	if d, ok := tags[w.delimTag]; ok {
+		delim = d.Value
 	}
 
-	sep := rsf.Tag.Get(w.sepTag)
-	if sep == "" {
-		sep = w.defaultSep
+	sep := w.defaultSep
+	if s, ok := tags[w.sepTag]; ok {
+		sep = s.Value
 	}
 
 	for _, part := range strings.Split(value, delim) {
@@ -464,67 +436,30 @@ func (w *walker) parseDelimitedMap(rv reflect.Value, rsf reflect.StructField, va
 	return nil
 }
 
-func (w *walker) parseMapOfStructs(rv reflect.Value, rsf reflect.StructField, fieldName string, pfx ...string) error {
-	keyType := rv.Type().Key()
-
-	keys := w.matcher.GetMapKeys(rsf, pfx)
-	pfx = append(pfx, fieldName)
-
-	for _, key := range keys {
-		elem := reflect.New(rv.Type().Elem()).Elem()
-		pfx := append(pfx, key)
-
-		if err := w.walkStruct(elem, pfx...); err != nil {
-			return err
-		}
-
-		keyValue := reflect.New(keyType).Elem()
-		if err := w.parseField(keyValue, keyType, key); err != nil {
-			return err
-		}
-
-		rv.SetMapIndex(keyValue, elem)
-	}
-
-	return nil
-}
-
-func (w *walker) parseMap(rv reflect.Value, rsf reflect.StructField, fieldName string, pfx ...string) error {
+func (w *walker) parseMap(rv reflect.Value, path []tag.TagMap) error {
 	keyType := rv.Type().Key()
 	elemType := rv.Type().Elem()
 
-	pfx = append(pfx, fieldName)
-
-	keys := w.matcher.GetMapKeys(rsf, pfx)
+	keys := w.matcher.GetMapKeys(path)
 
 	for _, key := range keys {
-		elem := reflect.New(rv.Type().Elem()).Elem()
-
 		newKey := reflect.New(keyType).Elem()
 		if err := w.parseField(newKey, keyType, key); err != nil {
 			return err
 		}
 
-		tmp := reflect.StructField{
-			Name: key,
-			Type: elem.Type(),
-			Tag:  rsf.Tag,
-		}
-
-		value, found, err := w.matcher.GetValue(tmp, pfx)
-		if err != nil {
-			return err
-		}
-
-		decodeUnset := w.parseDecodeUnsetOption(tag.ParseTags(rsf))
-
-		if !found && !decodeUnset {
-			continue
-		}
+		valuePath := append(path, tag.TagMap{
+			FieldName: key,
+			Tags:      map[string]tag.Tag{w.tagName: {Value: key}},
+		})
 
 		newValue := reflect.New(elemType).Elem()
-		if err := w.parseField(newValue, elemType, value); err != nil {
+		if err := w.walkStructField(newValue, valuePath); err != nil {
 			return err
+		}
+
+		if isZero(newValue) {
+			continue
 		}
 
 		rv.SetMapIndex(newKey, newValue)

@@ -13,11 +13,22 @@ type Tag struct {
 	Options map[string]string
 }
 
-func ParseTags(rfs reflect.StructField) map[string]Tag {
+type TagMap struct {
+	FieldName string
+	Type      reflect.Type
+	Tags      map[string]Tag
+}
+
+func ParseTags(rfs reflect.StructField) TagMap {
 	rft := rfs.Tag
 
+	tm := TagMap{
+		FieldName: rfs.Name,
+		Type:      rfs.Type,
+		Tags:      map[string]Tag{},
+	}
 	// otherwise parse all tags
-	tags := make(map[string]Tag)
+
 	for rft != "" {
 		// Skip leading space.
 		i := 0
@@ -58,7 +69,7 @@ func ParseTags(rfs reflect.StructField) map[string]Tag {
 		if err == nil {
 			value, options := parseTag(value)
 
-			tags[name] = Tag{
+			tm.Tags[name] = Tag{
 				Name:    name,
 				Value:   value,
 				Options: options,
@@ -66,19 +77,19 @@ func ParseTags(rfs reflect.StructField) map[string]Tag {
 		}
 	}
 
-	tags["struct"] = Tag{
+	tm.Tags["struct"] = Tag{
 		Name:    "struct",
 		Value:   rfs.Name,
 		Options: map[string]string{},
 	}
 
-	tags["struct_snake"] = Tag{
+	tm.Tags["struct_snake"] = Tag{
 		Name:    "struct_snake",
 		Value:   toSnakeCase(rfs.Name),
 		Options: map[string]string{},
 	}
 
-	return tags
+	return tm
 }
 
 func parseTag(tag string) (string, map[string]string) {
