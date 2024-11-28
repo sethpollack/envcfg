@@ -8,15 +8,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type CustomDecoderIface interface {
-	CustomDecode(value string) error
-}
-
-type customDecoder struct {
+// Custom type implementing Decoder interface
+type decoder struct {
 	value string
 }
 
-func (c *customDecoder) CustomDecode(value string) error {
+func (c *decoder) Decode(value string) error {
+	c.value = value
+	return nil
+}
+
+type customIface interface {
+	CustomDecode(value string) error
+}
+
+// Custom type implementing customIface
+type custom struct {
+	value string
+}
+
+func (c *custom) CustomDecode(value string) error {
 	c.value = value
 	return nil
 }
@@ -61,8 +72,12 @@ func TestFromReflectValue(t *testing.T) {
 		input interface{}
 	}{
 		{
-			name:  "custom decoder",
-			input: &customDecoder{},
+			name:  "decoder",
+			input: &decoder{},
+		},
+		{
+			name:  "custom",
+			input: &custom{},
 		},
 		{
 			name:  "flag value",
@@ -81,8 +96,8 @@ func TestFromReflectValue(t *testing.T) {
 	for _, tc := range tt {
 		r := New()
 
-		err := r.Build(WithDecoder((*CustomDecoderIface)(nil), func(v any, value string) error {
-			return v.(*customDecoder).CustomDecode(value)
+		err := r.Build(WithDecoder((*customIface)(nil), func(v any, value string) error {
+			return v.(*custom).CustomDecode(value)
 		}))
 		require.NoError(t, err)
 
@@ -96,7 +111,7 @@ func TestFromReflectValue(t *testing.T) {
 			require.NoError(t, err)
 
 			switch v := tc.input.(type) {
-			case *customDecoder:
+			case *custom:
 				assert.Equal(t, tc.name, v.value)
 			case *flagValue:
 				assert.Equal(t, tc.name, v.value)
