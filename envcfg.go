@@ -110,34 +110,30 @@ func WithDecoder(iface any, f decoder.DecodeBuilderFunc) any {
 // WithTypeParser registers a custom parser function for a specific type.
 // This allows extending the parser to support additional types beyond
 // the built-in supported types.
-func WithTypeParser(t reflect.Type, f parser.ParserFunc) any {
-	return parser.WithTypeParser(t, func(value string) (any, error) {
-		return f(value)
-	})
+func WithTypeParser(t reflect.Type, f func(value string) (any, error)) any {
+	return parser.WithTypeParser(t, f)
 }
 
 // WithTypeParsers registers multiple custom parser functions for specific types.
 // This allows extending the parser to support additional types beyond
 // the built-in supported types.
 // This is a convenience function for registering multiple type parsers at once.
-func WithTypeParsers(parsers map[reflect.Type]parser.ParserFunc) any {
+func WithTypeParsers(parsers map[reflect.Type]func(value string) (any, error)) any {
 	return parser.WithTypeParsers(parsers)
 }
 
 // WithKindParser registers a custom parser function for a specific reflect.Kind.
 // This allows extending the parser to support additional kinds beyond
 // the built-in supported kinds.
-func WithKindParser(k reflect.Kind, f parser.ParserFunc) any {
-	return parser.WithKindParser(k, func(value string) (any, error) {
-		return f(value)
-	})
+func WithKindParser(k reflect.Kind, f func(value string) (any, error)) any {
+	return parser.WithKindParser(k, f)
 }
 
 // WithKindParsers registers multiple custom parser functions for specific reflect.Kinds.
 // This allows extending the parser to support additional kinds beyond
 // the built-in supported kinds.
 // This is a convenience function for registering multiple kind parsers at once.
-func WithKindParsers(parsers map[reflect.Kind]parser.ParserFunc) any {
+func WithKindParsers(parsers map[reflect.Kind]func(value string) (any, error)) any {
 	return parser.WithKindParsers(parsers)
 }
 
