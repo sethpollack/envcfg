@@ -144,7 +144,7 @@ func TestWalkMapWithInvalidDelim(t *testing.T) {
 	}
 
 	err := w.Walk(&cfg)
-	assert.ErrorIs(t, err, ErrInvalidMapFormat)
+	assert.Error(t, err)
 }
 
 func TestWalkNamedMap(t *testing.T) {

@@ -11,9 +11,6 @@ import (
 	"github.com/sethpollack/envcfg/internal/tag"
 )
 
-// ErrInvalidMapFormat indicates that a map string value couldn't be parsed due to incorrect format
-var ErrInvalidMapFormat = fmt.Errorf("invalid map format")
-
 type initMode int
 
 const (
@@ -396,7 +393,7 @@ func (w *walker) parseDelimitedMap(rv reflect.Value, value string, tags map[stri
 	for _, part := range strings.Split(value, delim) {
 		kv := strings.SplitN(part, sep, 2)
 		if len(kv) != 2 {
-			return fmt.Errorf("%w: expected key and value to be separated by %q, got %q", ErrInvalidMapFormat, sep, part)
+			return fmt.Errorf("expected key and value to be separated by %q, got %q", sep, part)
 		}
 
 		keyValue := reflect.New(keyType).Elem()
