@@ -282,7 +282,6 @@ type Config struct {
 |--------|-------------|
 | `WithParser` | Overrides the default parser |
 | `WithMatcher` | Overrides the default matcher |
-| `WithLoader` | Overrides the default loader |
 | `WithCustomOpts` | Passes arbitrary options to the above user-implemented components |
 
 #### Tags
@@ -326,7 +325,7 @@ type Config struct {
 |--------|-------------|---------|
 | `WithDisableFallback` | Disables fallback to `env` tag value when no other matches are found | `false` |
 
-#### Default Loader
+#### Loader
 
 | Option | Description |
 |--------|-------------|

@@ -11,14 +11,14 @@ type Source interface {
 	Build(opts ...any) error
 }
 
-type Option func(*env)
+type Option func(*Loader)
 
 // WithSource adds a custom source to load environment variables from.
 // The source must implement the Source interface with Load() and Build() methods.
 // Multiple sources can be added and will be loaded in the order they were added.
 func WithSource(source Source) Option {
-	return func(e *env) {
-		e.sources = append(e.sources, source)
+	return func(l *Loader) {
+		l.sources = append(l.sources, source)
 	}
 }
 
@@ -26,8 +26,8 @@ func WithSource(source Source) Option {
 // This is useful for testing or providing a fixed set of environment variables.
 // The provided map will be used as-is without any modifications.
 func WithEnvVarsSource(envs map[string]string) Option {
-	return func(e *env) {
-		e.sources = append(e.sources, &envSource{envs})
+	return func(l *Loader) {
+		l.sources = append(l.sources, &envSource{envs})
 	}
 }
 
@@ -35,8 +35,8 @@ func WithEnvVarsSource(envs map[string]string) Option {
 // This source uses os.Environ() to get the current process environment variables.
 // This is the default source if no other sources are specified.
 func WithOsEnvSource() Option {
-	return func(e *env) {
-		e.sources = append(e.sources, &osSource{})
+	return func(l *Loader) {
+		l.sources = append(l.sources, &osSource{})
 	}
 }
 
@@ -44,8 +44,8 @@ func WithOsEnvSource() Option {
 // The file should contain environment variables in KEY=VALUE format, one per line.
 // If the file cannot be read, the source will return an empty map.
 func WithFileSource(path string) Option {
-	return func(e *env) {
-		e.sources = append(e.sources, &fileSource{path})
+	return func(l *Loader) {
+		l.sources = append(l.sources, &fileSource{path})
 	}
 }
 
@@ -53,8 +53,8 @@ func WithFileSource(path string) Option {
 // The provided map will be used as fallback values when a key is not found in any source.
 // If a key exists in both a source and defaults, the source value takes precedence.
 func WithDefaults(envs map[string]string) Option {
-	return func(e *env) {
-		e.defaults = envs
+	return func(l *Loader) {
+		l.defaults = envs
 	}
 }
 
@@ -63,8 +63,8 @@ func WithDefaults(envs map[string]string) Option {
 // false if it should be excluded. Multiple filters can be added and a key will be included
 // if any filter returns true for it. If no filters are added, all keys are included.
 func WithFilter(filter func(string) bool) Option {
-	return func(e *env) {
-		e.filters = append(e.filters, filter)
+	return func(l *Loader) {
+		l.filters = append(l.filters, filter)
 	}
 }
 
@@ -72,8 +72,8 @@ func WithFilter(filter func(string) bool) Option {
 // The transform function takes a key string and returns a new key string.
 // Multiple transforms can be added and they are applied in the order they were added.
 func WithTransform(transform func(string) string) Option {
-	return func(e *env) {
-		e.transforms = append(e.transforms, transform)
+	return func(l *Loader) {
+		l.transforms = append(l.transforms, transform)
 	}
 }
 
@@ -81,8 +81,8 @@ func WithTransform(transform func(string) string) Option {
 // For example, WithHasPrefix("APP_") would include "APP_NAME" but exclude "NAME".
 // Multiple filters can be added and a key will be included if any filter matches.
 func WithHasPrefix(prefix string) Option {
-	return func(e *env) {
-		e.filters = append(e.filters, func(key string) bool {
+	return func(l *Loader) {
+		l.filters = append(l.filters, func(key string) bool {
 			return strings.HasPrefix(key, prefix)
 		})
 	}
@@ -92,8 +92,8 @@ func WithHasPrefix(prefix string) Option {
 // For example, WithHasSuffix("_TEST") would include "APP_TEST" but exclude "APP_TEST_2".
 // Multiple filters can be added and a key will be included if any filter matches.
 func WithHasSuffix(suffix string) Option {
-	return func(e *env) {
-		e.filters = append(e.filters, func(key string) bool {
+	return func(l *Loader) {
+		l.filters = append(l.filters, func(key string) bool {
 			return strings.HasSuffix(key, suffix)
 		})
 	}
@@ -105,8 +105,8 @@ func WithHasSuffix(suffix string) Option {
 // The pattern must be a valid regular expression - if invalid, it will panic.
 func WithHasMatch(pattern string) Option {
 	regex := regexp.MustCompile(pattern)
-	return func(e *env) {
-		e.filters = append(e.filters, func(key string) bool {
+	return func(l *Loader) {
+		l.filters = append(l.filters, func(key string) bool {
 			return regex.MatchString(key)
 		})
 	}
@@ -117,8 +117,8 @@ func WithHasMatch(pattern string) Option {
 // Multiple transforms can be added and they are applied in the order they were added.
 // If the key does not start with the prefix, it is returned unchanged.
 func WithTrimPrefix(prefix string) Option {
-	return func(e *env) {
-		e.transforms = append(e.transforms, func(key string) string {
+	return func(l *Loader) {
+		l.transforms = append(l.transforms, func(key string) string {
 			return strings.TrimPrefix(key, prefix)
 		})
 	}
@@ -129,8 +129,8 @@ func WithTrimPrefix(prefix string) Option {
 // Multiple transforms can be added and they are applied in the order they were added.
 // If the key does not end with the suffix, it is returned unchanged.
 func WithTrimSuffix(suffix string) Option {
-	return func(e *env) {
-		e.transforms = append(e.transforms, func(key string) string {
+	return func(l *Loader) {
+		l.transforms = append(l.transforms, func(key string) string {
 			return strings.TrimSuffix(key, suffix)
 		})
 	}
@@ -141,11 +141,11 @@ func WithTrimSuffix(suffix string) Option {
 // For example, WithPrefix("APP_") would transform "APP_NAME" to "NAME" and exclude "OTHER_NAME".
 // Multiple filters and transforms can be added and they are applied in the order they were added.
 func WithPrefix(prefix string) Option {
-	return func(e *env) {
-		e.filters = append(e.filters, func(key string) bool {
+	return func(l *Loader) {
+		l.filters = append(l.filters, func(key string) bool {
 			return strings.HasPrefix(key, prefix)
 		})
-		e.transforms = append(e.transforms, func(key string) string {
+		l.transforms = append(l.transforms, func(key string) string {
 			return strings.TrimPrefix(key, prefix)
 		})
 	}
@@ -156,39 +156,39 @@ func WithPrefix(prefix string) Option {
 // For example, WithSuffix("_TEST") would transform "APP_TEST" to "APP" and exclude "APP_TEST_2".
 // Multiple filters and transforms can be added and they are applied in the order they were added.
 func WithSuffix(suffix string) Option {
-	return func(e *env) {
-		e.filters = append(e.filters, func(key string) bool {
+	return func(l *Loader) {
+		l.filters = append(l.filters, func(key string) bool {
 			return strings.HasSuffix(key, suffix)
 		})
-		e.transforms = append(e.transforms, func(key string) string {
+		l.transforms = append(l.transforms, func(key string) string {
 			return strings.TrimSuffix(key, suffix)
 		})
 	}
 }
 
-type env struct {
+type Loader struct {
 	sources    []Source
 	defaults   map[string]string
 	filters    []func(string) bool
 	transforms []func(string) string
 }
 
-func New() *env {
-	return &env{}
+func New() *Loader {
+	return &Loader{}
 }
 
-func (e *env) Build(opts ...any) error {
+func (l *Loader) Build(opts ...any) error {
 	for _, opt := range opts {
 		if v, ok := opt.(Option); ok {
-			v(e)
+			v(l)
 		}
 	}
 
-	if len(e.sources) == 0 {
-		e.sources = append(e.sources, &osSource{})
+	if len(l.sources) == 0 {
+		l.sources = append(l.sources, &osSource{})
 	}
 
-	for _, s := range e.sources {
+	for _, s := range l.sources {
 		if err := s.Build(opts...); err != nil {
 			return err
 		}
@@ -197,17 +197,17 @@ func (e *env) Build(opts ...any) error {
 	return nil
 }
 
-func (e *env) Load() map[string]string {
+func (l *Loader) Load() map[string]string {
 	envs := make(map[string]string)
 
-	for k, v := range e.defaults {
+	for k, v := range l.defaults {
 		envs[k] = v
 	}
 
-	for _, s := range e.sources {
+	for _, s := range l.sources {
 		for k, v := range s.Load() {
-			if e.matches(k) {
-				k = e.transform(k)
+			if l.matches(k) {
+				k = l.transform(k)
 				envs[k] = v
 			}
 		}
@@ -216,12 +216,12 @@ func (e *env) Load() map[string]string {
 	return envs
 }
 
-func (e *env) matches(key string) bool {
-	if len(e.filters) == 0 {
+func (l *Loader) matches(key string) bool {
+	if len(l.filters) == 0 {
 		return true
 	}
 
-	for _, f := range e.filters {
+	for _, f := range l.filters {
 		if f(key) {
 			return true
 		}
@@ -230,8 +230,8 @@ func (e *env) matches(key string) bool {
 	return false
 }
 
-func (e *env) transform(key string) string {
-	for _, t := range e.transforms {
+func (l *Loader) transform(key string) string {
+	for _, t := range l.transforms {
 		key = t(key)
 	}
 

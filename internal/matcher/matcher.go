@@ -11,11 +11,6 @@ import (
 	"github.com/sethpollack/envcfg/internal/tag"
 )
 
-type Loader interface {
-	Load() map[string]string
-	Build(opts ...any) error
-}
-
 type Option func(*matcher)
 
 func WithTagName(tagName string) Option {
@@ -54,12 +49,6 @@ func WithRequiredTag(tag string) Option {
 	}
 }
 
-func WithLoader(loader Loader) Option {
-	return func(m *matcher) {
-		m.loader = loader
-	}
-}
-
 func WithDisableFallback() Option {
 	return func(m *matcher) {
 		m.disableFallback = true
@@ -74,7 +63,7 @@ type matcher struct {
 	notEmptyTag     string
 	requiredTag     string
 	disableFallback bool
-	loader          Loader
+	loader          *loader.Loader
 	envVars         map[string]string
 }
 

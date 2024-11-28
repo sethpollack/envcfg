@@ -148,16 +148,6 @@ func WithNotEmptyTag(tag string) Option {
 	}
 }
 
-// WithLoader sets a custom loader for retrieving environment variables.
-// The default loader supports configuration via WithEnvVarsSource, WithOsEnvSource,
-// WithFileSource, or WithDefaults, and will fall back to OS environment if
-// no sources are configured.
-func WithLoader(loader matcher.Loader) Option {
-	return func(e *envcfg) {
-		e.opts = append(e.opts, matcher.WithLoader(loader))
-	}
-}
-
 // WithDisableFallback enforces strict matching using the "env" tag.
 // By default, it will try the field name, snake case field name, and all struct tags until a match is found.
 func WithDisableFallback() Option {
@@ -217,7 +207,7 @@ func WithKindParsers(parsers map[reflect.Kind]parser.ParserFunc) Option {
 }
 
 // WithSource adds a source to the loader.
-func WithSource(source matcher.Loader) Option {
+func WithSource(source loader.Source) Option {
 	return func(e *envcfg) {
 		e.opts = append(e.opts, loader.WithSource(source))
 	}
@@ -225,7 +215,7 @@ func WithSource(source matcher.Loader) Option {
 
 // WithSources adds multiple sources to the loader.
 // This is a convenience function for adding multiple sources at once.
-func WithSources(sources ...matcher.Loader) Option {
+func WithSources(sources ...loader.Source) Option {
 	return func(e *envcfg) {
 		for _, source := range sources {
 			e.opts = append(e.opts, loader.WithSource(source))
