@@ -22,9 +22,9 @@ type DecodeBuilderFunc func(v any, value string) error
 
 type Option func(*Decoder)
 
-func WithDecoder(iface any, f DecodeBuilderFunc) Option {
+func WithDecoder(iface any, f func(v any, value string) error) Option {
 	return func(r *Decoder) {
-		r.decoders[iface] = f
+		r.decoders[iface] = DecodeBuilderFunc(f)
 	}
 }
 

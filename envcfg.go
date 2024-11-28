@@ -103,7 +103,7 @@ func WithDisableFallback() any {
 }
 
 // WithDecoder registers a custom decoder function for a specific interface.
-func WithDecoder(iface any, f decoder.DecodeBuilderFunc) any {
+func WithDecoder(iface any, f func(v any, value string) error) any {
 	return decoder.WithDecoder(iface, f)
 }
 
