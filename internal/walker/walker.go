@@ -86,6 +86,12 @@ func WithDecodeUnset() Option {
 	}
 }
 
+func WithInitTag(tag string) Option {
+	return func(w *walker) {
+		w.initTag = tag
+	}
+}
+
 func WithInitNever() Option {
 	return func(w *walker) {
 		w.initMode = initNever

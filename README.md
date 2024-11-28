@@ -229,14 +229,14 @@ Config:
 | `file` | Load value from file | `false` | `file:"true"` | `env:",file"` |
 | `delim` | Delimiter for array values | `,` | `delim:";"` | `env:",delim=;"` |
 | `sep` | Separator for map key-value pairs | `:` | `sep:"="` | `env:",sep="` |
-| `init` | Initialize nil pointers | `values` | `init:"always"` | `env:",init=always"` |
+| `init` | Initialize maps, slices, and pointers | `values` | `init:"always"` | `env:",init=always"` |
 | `ignore` | Ignore field | `false` | `ignore:"true"` | `env:",ignore"` or `env:"-"` |
 | `decodeunset` | Decode unset environment variables | `false` | `decodeunset:"true"` | `env:",decodeunset"` |
 
 ### Init Options
 - `values` - Initialize when values are present (default)
-- `always` - Always initialize nil pointers
-- `never` - Never initialize nil pointers
+- `always` - Always initialize
+- `never` - Never initialize
 
 
 > [!TIP]

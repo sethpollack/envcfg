@@ -51,16 +51,22 @@ func WithDecodeUnset() any {
 	return walker.WithDecodeUnset()
 }
 
-// WithInitNever disables automatic initialization of nil pointers.
-// By default, nil pointers are initialized only when a matching
+// WithInitTag sets the struct tag name used for initialization mode.
+// The default tag name is "init".
+func WithInitTag(tag string) any {
+	return walker.WithInitTag(tag)
+}
+
+// WithInitNever disables automatic initialization of maps, slices, and pointers
+// By default they are initialized only when a matching
 // environment variable is found.
 func WithInitNever() any {
 	return walker.WithInitNever()
 }
 
-// WithInitAlways enables automatic initialization of nil pointers
+// WithInitAlways enables automatic initialization of maps, slices, and pointers
 // regardless of whether matching environment variables are found.
-// By default, nil pointers are initialized only when a matching
+// By default they are initialized only when a matching
 // environment variable is found.
 func WithInitAlways() any {
 	return walker.WithInitAlways()
