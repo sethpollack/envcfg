@@ -11,51 +11,51 @@ import (
 	"github.com/sethpollack/envcfg/internal/tag"
 )
 
-type Option func(*matcher)
+type Option func(*Matcher)
 
 func WithTagName(tagName string) Option {
-	return func(m *matcher) {
+	return func(m *Matcher) {
 		m.tagName = tagName
 	}
 }
 
 func WithDefaultTag(tag string) Option {
-	return func(m *matcher) {
+	return func(m *Matcher) {
 		m.defaultTag = tag
 	}
 }
 
 func WithExpandTag(tag string) Option {
-	return func(m *matcher) {
+	return func(m *Matcher) {
 		m.expandTag = tag
 	}
 }
 
 func WithFileTag(tag string) Option {
-	return func(m *matcher) {
+	return func(m *Matcher) {
 		m.fileTag = tag
 	}
 }
 
 func WithNotEmptyTag(tag string) Option {
-	return func(m *matcher) {
+	return func(m *Matcher) {
 		m.notEmptyTag = tag
 	}
 }
 
 func WithRequiredTag(tag string) Option {
-	return func(m *matcher) {
+	return func(m *Matcher) {
 		m.requiredTag = tag
 	}
 }
 
 func WithDisableFallback() Option {
-	return func(m *matcher) {
+	return func(m *Matcher) {
 		m.disableFallback = true
 	}
 }
 
-type matcher struct {
+type Matcher struct {
 	tagName         string
 	defaultTag      string
 	expandTag       string
@@ -67,8 +67,8 @@ type matcher struct {
 	envVars         map[string]string
 }
 
-func New() *matcher {
-	return &matcher{
+func New() *Matcher {
+	return &Matcher{
 		tagName:     "env",
 		defaultTag:  "default",
 		expandTag:   "expand",
@@ -79,7 +79,7 @@ func New() *matcher {
 	}
 }
 
-func (m *matcher) Build(opts ...any) error {
+func (m *Matcher) Build(opts ...any) error {
 	for _, opt := range opts {
 		if v, ok := opt.(Option); ok {
 			v(m)
@@ -95,7 +95,7 @@ func (m *matcher) Build(opts ...any) error {
 	return nil
 }
 
-func (m *matcher) GetValue(path []tag.TagMap) (string, bool, error) {
+func (m *Matcher) GetValue(path []tag.TagMap) (string, bool, error) {
 	opts := m.parseOptions(path[len(path)-1])
 
 	foundMatch, foundKey, foundValue := m.getValue("", path)
@@ -139,11 +139,11 @@ func (m *matcher) GetValue(path []tag.TagMap) (string, bool, error) {
 	return foundValue, true, nil
 }
 
-func (m *matcher) HasPrefix(path []tag.TagMap) bool {
+func (m *Matcher) HasPrefix(path []tag.TagMap) bool {
 	return m.hasPrefix("", path)
 }
 
-func (m *matcher) GetMapKeys(path []tag.TagMap) []string {
+func (m *Matcher) GetMapKeys(path []tag.TagMap) []string {
 	if len(path) == 0 {
 		return []string{}
 	}
@@ -160,12 +160,12 @@ func (m *matcher) GetMapKeys(path []tag.TagMap) []string {
 	}
 }
 
-func (m *matcher) getPrimitiveMapKeys(path []tag.TagMap) []string {
+func (m *Matcher) getPrimitiveMapKeys(path []tag.TagMap) []string {
 	uniqueKeys := make(map[string]struct{})
 
 	for key := range m.envVars {
 		if found, prefix := m.toPrefix(key, "", path); found {
-			if key := m.getMapKey(key, prefix, ""); key != "" {
+			if key := parseMapKey(key, prefix, ""); key != "" {
 				uniqueKeys[key] = struct{}{}
 			}
 		}
@@ -179,35 +179,14 @@ func (m *matcher) getPrimitiveMapKeys(path []tag.TagMap) []string {
 	return keys
 }
 
-func (m *matcher) getMapKey(key, prefix, suffix string) string {
-	if !strings.HasPrefix(key, prefix) {
-		return ""
-	}
-
-	// Get the part after prefix, removing the leading underscore
-	afterPrefix := strings.TrimPrefix(key, fmt.Sprintf("%s_", prefix))
-
-	// First try exact suffix match
-	if strings.HasSuffix(afterPrefix, suffix) {
-		return strings.ToLower(strings.TrimSuffix(afterPrefix, "_"+suffix))
-	}
-
-	// If no exact match, look for suffix elsewhere in the string
-	if idx := strings.Index(afterPrefix, "_"+suffix+"_"); idx >= 0 {
-		return strings.ToLower(afterPrefix[:idx])
-	}
-
-	return ""
-}
-
-func (m *matcher) getSliceMapKeys(path []tag.TagMap) []string {
+func (m *Matcher) getSliceMapKeys(path []tag.TagMap) []string {
 	uniqueKeys := make(map[string]struct{})
 
 	for i := 0; ; i++ {
 		found := false
 		for key := range m.envVars {
 			if ok, prefix := m.toPrefix(key, "", path); ok {
-				if mapKey := m.getMapKey(key, prefix, strconv.Itoa(i)); mapKey != "" {
+				if mapKey := parseMapKey(key, prefix, strconv.Itoa(i)); mapKey != "" {
 					uniqueKeys[mapKey] = struct{}{}
 					found = true
 				}
@@ -225,7 +204,7 @@ func (m *matcher) getSliceMapKeys(path []tag.TagMap) []string {
 
 	return keys
 }
-func (m *matcher) getStructMapKeys(path []tag.TagMap) []string {
+func (m *Matcher) getStructMapKeys(path []tag.TagMap) []string {
 	uniqueKeys := make(map[string]struct{})
 
 	for envVarName := range m.envVars {
@@ -244,7 +223,7 @@ func (m *matcher) getStructMapKeys(path []tag.TagMap) []string {
 	return keys
 }
 
-func (m *matcher) findLongestMatchingKey(key, prefix string, path []tag.TagMap) string {
+func (m *Matcher) findLongestMatchingKey(key, prefix string, path []tag.TagMap) string {
 	bestKey := ""
 	longestMatch := 0
 
@@ -256,7 +235,7 @@ func (m *matcher) findLongestMatchingKey(key, prefix string, path []tag.TagMap) 
 		parsedTags := tag.ParseTags(field)
 
 		if tag, ok := parsedTags.Tags[m.tagName]; ok {
-			if mapKey := m.getMapKey(key, prefix, strings.ToUpper(tag.Value)); mapKey != "" {
+			if mapKey := parseMapKey(key, prefix, strings.ToUpper(tag.Value)); mapKey != "" {
 				if len(tag.Value) > longestMatch {
 					longestMatch = len(tag.Value)
 					bestKey = mapKey
@@ -269,7 +248,7 @@ func (m *matcher) findLongestMatchingKey(key, prefix string, path []tag.TagMap) 
 				continue
 			}
 
-			if mapKey := m.getMapKey(key, prefix, strings.ToUpper(tag.Value)); mapKey != "" {
+			if mapKey := parseMapKey(key, prefix, strings.ToUpper(tag.Value)); mapKey != "" {
 				if len(tag.Value) > longestMatch {
 					longestMatch = len(tag.Value)
 					bestKey = mapKey
@@ -281,7 +260,7 @@ func (m *matcher) findLongestMatchingKey(key, prefix string, path []tag.TagMap) 
 	return bestKey
 }
 
-func (m *matcher) getValue(prefix string, path []tag.TagMap) (bool, string, string) {
+func (m *Matcher) getValue(prefix string, path []tag.TagMap) (bool, string, string) {
 	if len(path) == 0 {
 		envVarName := strings.ToUpper(prefix)
 
@@ -325,7 +304,7 @@ func (m *matcher) getValue(prefix string, path []tag.TagMap) (bool, string, stri
 	return false, "", ""
 }
 
-func (m *matcher) hasPrefix(prefix string, path []tag.TagMap) bool {
+func (m *Matcher) hasPrefix(prefix string, path []tag.TagMap) bool {
 	if len(path) == 0 {
 		envVarName := strings.ToUpper(prefix)
 
@@ -371,7 +350,7 @@ func (m *matcher) hasPrefix(prefix string, path []tag.TagMap) bool {
 	return false
 }
 
-func (m *matcher) toPrefix(key, prefix string, path []tag.TagMap) (bool, string) {
+func (m *Matcher) toPrefix(key, prefix string, path []tag.TagMap) (bool, string) {
 	if len(path) == 0 {
 		envVarPrefix := strings.ToUpper(prefix)
 		if strings.HasPrefix(key, envVarPrefix) {
@@ -416,11 +395,11 @@ func (m *matcher) toPrefix(key, prefix string, path []tag.TagMap) (bool, string)
 	return false, ""
 }
 
-func (m *matcher) expandValue(value string) string {
+func (m *Matcher) expandValue(value string) string {
 	return os.Expand(value, func(s string) string { return m.envVars[s] })
 }
 
-func (m *matcher) parseOptions(tm tag.TagMap) map[string]string {
+func (m *Matcher) parseOptions(tm tag.TagMap) map[string]string {
 	opts := map[string]string{}
 
 	// first check for first class tags
@@ -471,7 +450,7 @@ func (m *matcher) parseOptions(tm tag.TagMap) map[string]string {
 	return opts
 }
 
-func (m *matcher) isKnownTag(tagName string) bool {
+func (m *Matcher) isKnownTag(tagName string) bool {
 	tags := map[string]bool{
 		m.tagName:     true,
 		m.requiredTag: true,
@@ -483,6 +462,27 @@ func (m *matcher) isKnownTag(tagName string) bool {
 
 	_, ok := tags[tagName]
 	return ok
+}
+
+func parseMapKey(key, prefix, suffix string) string {
+	if !strings.HasPrefix(key, prefix) {
+		return ""
+	}
+
+	// Get the part after prefix, removing the leading underscore
+	afterPrefix := strings.TrimPrefix(key, fmt.Sprintf("%s_", prefix))
+
+	// First try exact suffix match
+	if strings.HasSuffix(afterPrefix, suffix) {
+		return strings.ToLower(strings.TrimSuffix(afterPrefix, "_"+suffix))
+	}
+
+	// If no exact match, look for suffix elsewhere in the string
+	if idx := strings.Index(afterPrefix, "_"+suffix+"_"); idx >= 0 {
+		return strings.ToLower(afterPrefix[:idx])
+	}
+
+	return ""
 }
 
 func fieldPath(path []tag.TagMap) string {

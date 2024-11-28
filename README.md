@@ -281,7 +281,6 @@ type Config struct {
 | Option | Description |
 |--------|-------------|
 | `WithParser` | Overrides the default parser |
-| `WithMatcher` | Overrides the default matcher |
 | `WithCustomOpts` | Passes arbitrary options to the above user-implemented components |
 
 #### Tags
@@ -319,7 +318,7 @@ type Config struct {
 | `WithKindParser` | Sets a custom kind parser |
 | `WithKindParsers` | Sets custom kind parsers |
 
-#### Default Matcher
+#### Matcher
 
 | Option | Description | Default |
 |--------|-------------|---------|

@@ -41,14 +41,6 @@ func WithParser(p walker.Parser) Option {
 	}
 }
 
-// WithMatcher overrides the default matcher used for finding environment variables
-// that correspond to struct fields.
-func WithMatcher(matcher walker.Matcher) Option {
-	return func(e *envcfg) {
-		e.opts = append(e.opts, walker.WithMatcher(matcher))
-	}
-}
-
 // WithDelimiterTag sets the struct tag name used for the delimiter.
 // The default tag name is "delim".
 func WithDelimiterTag(tag string) Option {

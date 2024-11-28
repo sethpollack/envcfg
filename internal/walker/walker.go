@@ -21,13 +21,6 @@ type Parser interface {
 	Build(opts ...any) error
 }
 
-type Matcher interface {
-	HasPrefix(path []tag.TagMap) bool
-	GetValue(path []tag.TagMap) (string, bool, error)
-	GetMapKeys(path []tag.TagMap) []string
-	Build(opts ...any) error
-}
-
 type initMode int
 
 const (
@@ -37,8 +30,6 @@ const (
 )
 
 type walker struct {
-	parser         Parser
-	matcher        Matcher
 	tagName        string
 	delimTag       string
 	defaultDelim   string
@@ -49,6 +40,9 @@ type walker struct {
 	ignoreTag      string
 	decodeUnsetTag string
 	decodeUnset    bool
+
+	parser  Parser
+	matcher *matcher.Matcher
 }
 
 type Option func(*walker)
@@ -56,12 +50,6 @@ type Option func(*walker)
 func WithParser(p Parser) Option {
 	return func(w *walker) {
 		w.parser = p
-	}
-}
-
-func WithMatcher(m Matcher) Option {
-	return func(w *walker) {
-		w.matcher = m
 	}
 }
 
