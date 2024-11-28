@@ -7,7 +7,7 @@ import (
 )
 
 type Source interface {
-	Load() map[string]string
+	Load() (map[string]string, error)
 	Build(opts ...any) error
 }
 
@@ -205,7 +205,7 @@ func (l *Loader) Build(opts ...any) error {
 	return nil
 }
 
-func (l *Loader) Load() map[string]string {
+func (l *Loader) Load() (map[string]string, error) {
 	envs := make(map[string]string)
 
 	for k, v := range l.defaults {
@@ -213,7 +213,12 @@ func (l *Loader) Load() map[string]string {
 	}
 
 	for _, s := range l.sources {
-		for k, v := range s.Load() {
+		loaded, err := s.Load()
+		if err != nil {
+			return nil, err
+		}
+
+		for k, v := range loaded {
 			if l.matches(k) {
 				k = l.transform(k)
 				envs[k] = v
@@ -221,7 +226,7 @@ func (l *Loader) Load() map[string]string {
 		}
 	}
 
-	return envs
+	return envs, nil
 }
 
 func (l *Loader) matches(key string) bool {
@@ -248,8 +253,8 @@ func (l *Loader) transform(key string) string {
 
 type osSource struct{}
 
-func (o *osSource) Load() map[string]string {
-	return toMap(os.Environ())
+func (o *osSource) Load() (map[string]string, error) {
+	return toMap(os.Environ()), nil
 }
 
 func (o *osSource) Build(opts ...any) error {
@@ -260,8 +265,8 @@ type envSource struct {
 	envs map[string]string
 }
 
-func (e *envSource) Load() map[string]string {
-	return e.envs
+func (e *envSource) Load() (map[string]string, error) {
+	return e.envs, nil
 }
 
 func (e *envSource) Build(opts ...any) error {
@@ -272,13 +277,18 @@ type fileSource struct {
 	path string
 }
 
-func (f *fileSource) Load() map[string]string {
-	bytes, err := os.ReadFile(f.path)
+func (f *fileSource) Load() (map[string]string, error) {
+	_, err := os.Stat(f.path)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return toMap(strings.Split(string(bytes), "\n"))
+	bytes, err := os.ReadFile(f.path)
+	if err != nil {
+		return nil, err
+	}
+
+	return toMap(strings.Split(string(bytes), "\n")), nil
 }
 
 func (f *fileSource) Build(opts ...any) error {

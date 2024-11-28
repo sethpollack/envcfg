@@ -90,7 +90,12 @@ func (m *Matcher) Build(opts ...any) error {
 		return err
 	}
 
-	m.envVars = m.loader.Load()
+	envs, err := m.loader.Load()
+	if err != nil {
+		return err
+	}
+
+	m.envVars = envs
 
 	return nil
 }
