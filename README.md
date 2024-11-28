@@ -37,9 +37,9 @@
     - [Components](#components)
     - [Tags](#tags)
     - [Walker](#walker)
-    - [Default Parser](#default-parser)
-    - [Default Matcher](#default-matcher)
-    - [Default Loader](#default-loader)
+    - [Parser](#parser)
+    - [Matcher](#matcher)
+    - [Loader](#loader)
 
 
 ## Installation
@@ -276,14 +276,7 @@ type Config struct {
 
 ### Configuration Options
 
-#### Components
-
-| Option | Description |
-|--------|-------------|
-| `WithParser` | Overrides the default parser |
-| `WithCustomOpts` | Passes arbitrary options to the above user-implemented components |
-
-#### Tags
+#### Tag Overrides
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -299,7 +292,7 @@ type Config struct {
 | `WithIgnoreTag` | Tag name for ignored variables | `ignore` |
 | `WithInitTag` | Tag name for initialization strategy | `init` |
 
-#### Walker
+#### Default Overrides
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -308,8 +301,9 @@ type Config struct {
 | `WithDecodeUnset` | Enables decoding unset environment variables by default | `false` |
 | `WithInitNever` | Sets the initialization strategy to never | `never` |
 | `WithInitAlways` | Sets the initialization strategy to always | `always` |
+| `WithDisableFallback` | Disables fallback to `env` tag value when no other matches are found | `false` |
 
-#### Default Parser
+#### Custom Parser Functions
 
 | Option | Description |
 |--------|-------------|
@@ -318,13 +312,7 @@ type Config struct {
 | `WithKindParser` | Sets a custom kind parser |
 | `WithKindParsers` | Sets custom kind parsers |
 
-#### Matcher
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `WithDisableFallback` | Disables fallback to `env` tag value when no other matches are found | `false` |
-
-#### Loader
+#### Loader Options
 
 | Option | Description |
 |--------|-------------|

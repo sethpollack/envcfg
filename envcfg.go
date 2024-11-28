@@ -33,14 +33,6 @@ func WithTagName(tag string) Option {
 	}
 }
 
-// WithParser overrides the default parser. While it allows extending supported types,
-// consider using WithTypeParser or WithKindParser for simpler type extensions.
-func WithParser(p walker.Parser) Option {
-	return func(e *envcfg) {
-		e.opts = append(e.opts, walker.WithParser(p))
-	}
-}
-
 // WithDelimiterTag sets the struct tag name used for the delimiter.
 // The default tag name is "delim".
 func WithDelimiterTag(tag string) Option {

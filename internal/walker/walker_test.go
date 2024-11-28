@@ -3,7 +3,6 @@ package walker
 import (
 	"testing"
 
-	"github.com/sethpollack/envcfg/internal/parser"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -310,7 +309,6 @@ func TestWalkWithOptions(t *testing.T) {
 	w := New()
 
 	if err := w.Build(
-		WithParser(parser.New()),
 		WithTagName("env"),
 		WithDelimiter(","),
 		WithSeparator(":"),

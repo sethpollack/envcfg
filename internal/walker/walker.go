@@ -14,13 +14,6 @@ import (
 // ErrInvalidMapFormat indicates that a map string value couldn't be parsed due to incorrect format
 var ErrInvalidMapFormat = fmt.Errorf("invalid map format")
 
-type Parser interface {
-	ParseType(reflect.Type, string) (any, bool, error)
-	ParseKind(reflect.Kind, string) (any, bool, error)
-	HasParser(reflect.Type) bool
-	Build(opts ...any) error
-}
-
 type initMode int
 
 const (
@@ -41,17 +34,11 @@ type walker struct {
 	decodeUnsetTag string
 	decodeUnset    bool
 
-	parser  Parser
+	parser  *parser.Parser
 	matcher *matcher.Matcher
 }
 
 type Option func(*walker)
-
-func WithParser(p Parser) Option {
-	return func(w *walker) {
-		w.parser = p
-	}
-}
 
 func WithTagName(tag string) Option {
 	return func(w *walker) {

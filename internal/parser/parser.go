@@ -8,44 +8,44 @@ import (
 
 type ParserFunc func(value string) (any, error)
 
-type Option func(*registry)
+type Option func(*Parser)
 
 func WithTypeParser(t reflect.Type, parserFunc ParserFunc) Option {
-	return func(r *registry) {
+	return func(r *Parser) {
 		r.typeParsers[t] = parserFunc
 	}
 }
 
 func WithKindParser(k reflect.Kind, parserFunc ParserFunc) Option {
-	return func(r *registry) {
-		r.kindParsers[k] = parserFunc
+	return func(p *Parser) {
+		p.kindParsers[k] = parserFunc
 	}
 }
 
-type registry struct {
+type Parser struct {
 	kindParsers map[reflect.Kind]ParserFunc
 	typeParsers map[reflect.Type]ParserFunc
 }
 
-func New() *registry {
-	return &registry{
+func New() *Parser {
+	return &Parser{
 		kindParsers: kindParsers(),
 		typeParsers: typeParsers(),
 	}
 }
 
-func (r *registry) Build(opts ...any) error {
+func (p *Parser) Build(opts ...any) error {
 	for _, opt := range opts {
 		if v, ok := opt.(Option); ok {
-			v(r)
+			v(p)
 		}
 	}
 
 	return nil
 }
 
-func (r *registry) ParseType(rt reflect.Type, value string) (any, bool, error) {
-	parser, ok := r.typeParsers[rt]
+func (p *Parser) ParseType(rt reflect.Type, value string) (any, bool, error) {
+	parser, ok := p.typeParsers[rt]
 	if !ok {
 		return nil, false, nil
 	}
@@ -58,8 +58,8 @@ func (r *registry) ParseType(rt reflect.Type, value string) (any, bool, error) {
 	return newValue, true, nil
 }
 
-func (r *registry) ParseKind(k reflect.Kind, value string) (any, bool, error) {
-	parser, ok := r.kindParsers[k]
+func (p *Parser) ParseKind(k reflect.Kind, value string) (any, bool, error) {
+	parser, ok := p.kindParsers[k]
 	if !ok {
 		return nil, false, nil
 	}
@@ -72,8 +72,8 @@ func (r *registry) ParseKind(k reflect.Kind, value string) (any, bool, error) {
 	return newValue, true, nil
 }
 
-func (r *registry) HasParser(rt reflect.Type) bool {
-	return r.typeParsers[rt] != nil || r.kindParsers[rt.Kind()] != nil
+func (p *Parser) HasParser(rt reflect.Type) bool {
+	return p.typeParsers[rt] != nil || p.kindParsers[rt.Kind()] != nil
 }
 
 func typeParsers() map[reflect.Type]ParserFunc {
