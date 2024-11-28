@@ -129,7 +129,9 @@ func (w *walker) Build(opts ...any) error {
 		return err
 	}
 
-	if err := w.matcher.Build(opts...); err != nil {
+	if err := w.matcher.Build(
+		// Pass the tag name as an option to the matcher
+		append(opts, matcher.WithTagName(w.tagName))...); err != nil {
 		return err
 	}
 

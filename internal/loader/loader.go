@@ -22,6 +22,14 @@ func WithSource(source Source) Option {
 	}
 }
 
+// WithSources adds multiple sources to the loader.
+// This is a convenience function for adding multiple sources at once.
+func WithSources(sources ...Source) Option {
+	return func(l *Loader) {
+		l.sources = append(l.sources, sources...)
+	}
+}
+
 // WithEnvVarsSource adds a source that loads environment variables from the provided map.
 // This is useful for testing or providing a fixed set of environment variables.
 // The provided map will be used as-is without any modifications.

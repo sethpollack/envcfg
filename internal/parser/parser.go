@@ -10,15 +10,37 @@ type ParserFunc func(value string) (any, error)
 
 type Option func(*Parser)
 
+// WithTypeParser registers a custom parser function for a specific reflect.Type.
+// This allows extending the parser to support additional types beyond
+// the built-in supported types.
 func WithTypeParser(t reflect.Type, parserFunc ParserFunc) Option {
 	return func(r *Parser) {
 		r.typeParsers[t] = parserFunc
 	}
 }
 
+// WithTypeParsers registers multiple custom parser functions for specific reflect.Types.
+// This is a convenience function for registering multiple type parsers at once.
+func WithTypeParsers(parsers map[reflect.Type]ParserFunc) Option {
+	return func(p *Parser) {
+		p.typeParsers = parsers
+	}
+}
+
+// WithKindParser registers a custom parser function for a specific reflect.Kind.
+// This allows extending the parser to support additional kinds beyond
+// the built-in supported kinds.
 func WithKindParser(k reflect.Kind, parserFunc ParserFunc) Option {
 	return func(p *Parser) {
 		p.kindParsers[k] = parserFunc
+	}
+}
+
+// WithKindParsers registers multiple custom parser functions for specific reflect.Kinds.
+// This is a convenience function for registering multiple kind parsers at once.
+func WithKindParsers(parsers map[reflect.Kind]ParserFunc) Option {
+	return func(p *Parser) {
+		p.kindParsers = parsers
 	}
 }
 
