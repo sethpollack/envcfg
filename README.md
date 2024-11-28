@@ -34,12 +34,11 @@
 - [Field Name Mapping](#field-name-mapping)
 - [Functions](#functions)
   - [Configuration Options](#configuration-options)
-    - [Components](#components)
-    - [Tags](#tags)
-    - [Walker](#walker)
-    - [Parser](#parser)
-    - [Matcher](#matcher)
-    - [Loader](#loader)
+    - [Tag Overrides](#tag-overrides)
+    - [Default Overrides](#default-overrides)
+    - [Custom Parser Functions](#custom-parser-functions)
+    - [Custom Decoder Functions](#custom-decoder-functions)
+    - [Loader Options](#loader-options)
 
 
 ## Installation
@@ -225,7 +224,7 @@ Config:
 |-----|-------------|---------|-----|--------|
 | `default` | Default value when environment variable is not set | - | `default:"8080"` | `env:",default=8080"` |
 | `required` | Mark field as required | `false` | `required:"true"` | `env:",required"` |
-| `notEmpty` | Ensure value is not empty | `false` | `notEmpty:"true"` | `env:",notEmpty"` |
+| `notempty` | Ensure value is not empty | `false` | `notempty:"true"` | `env:",notempty"` |
 | `expand` | Expand environment variables in value | `false` | `expand:"true"` | `env:",expand"` |
 | `file` | Load value from file | `false` | `file:"true"` | `env:",file"` |
 | `delim` | Delimiter for array values | `,` | `delim:";"` | `env:",delim=;"` |
@@ -287,7 +286,7 @@ type Config struct {
 | `WithDefaultTag` | Tag name for default values | `default` |
 | `WithExpandTag` | Tag name for expandable variables | `expand` |
 | `WithFileTag` | Tag name for file variables | `file` |
-| `WithNotEmptyTag` | Tag name for not empty variables | `notEmpty` |
+| `WithNotEmptyTag` | Tag name for not empty variables | `notempty` |
 | `WithRequiredTag` | Tag name for required variables | `required` |
 | `WithIgnoreTag` | Tag name for ignored variables | `ignore` |
 | `WithInitTag` | Tag name for initialization strategy | `init` |
@@ -307,10 +306,16 @@ type Config struct {
 
 | Option | Description |
 |--------|-------------|
-| `WithTypeParser` | Sets a custom type parser |
-| `WithTypeParsers` | Sets custom type parsers |
-| `WithKindParser` | Sets a custom kind parser |
-| `WithKindParsers` | Sets custom kind parsers |
+| `WithTypeParser` | Registers a custom type parser |
+| `WithTypeParsers` | Registers custom type parsers |
+| `WithKindParser` | Registers a custom kind parser |
+| `WithKindParsers` | Registers custom kind parsers |
+
+#### Custom Decoder Functions
+
+| Option | Description |
+|--------|-------------|
+| `WithDecoder` | Registers a custom decoder function for a specific interface |
 
 #### Loader Options
 
