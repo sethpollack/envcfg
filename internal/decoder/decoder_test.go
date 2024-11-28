@@ -5,14 +5,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// Custom type implementing Decoder interface
+type CustomDecoderIface interface {
+	CustomDecode(value string) error
+}
+
 type customDecoder struct {
 	value string
 }
 
-func (c *customDecoder) Decode(value string) error {
+func (c *customDecoder) CustomDecode(value string) error {
 	c.value = value
 	return nil
 }
@@ -75,14 +79,21 @@ func TestFromReflectValue(t *testing.T) {
 	}
 
 	for _, tc := range tt {
+		r := New()
+
+		err := r.Build(WithDecoder((*CustomDecoderIface)(nil), func(v any, value string) error {
+			return v.(*customDecoder).CustomDecode(value)
+		}))
+		require.NoError(t, err)
+
 		t.Run(tc.name, func(t *testing.T) {
 			rv := reflect.ValueOf(tc.input)
 
-			decoder := FromReflectValue(rv)
-			assert.NotNil(t, decoder)
+			decoder := r.ToDecoder(rv)
+			require.NotNil(t, decoder)
 
 			err := decoder.Decode(tc.name)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			switch v := tc.input.(type) {
 			case *customDecoder:

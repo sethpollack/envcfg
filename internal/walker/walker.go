@@ -36,6 +36,7 @@ type walker struct {
 
 	parser  *parser.Parser
 	matcher *matcher.Matcher
+	decoder *decoder.Decoder
 }
 
 type Option func(*walker)
@@ -113,6 +114,7 @@ func New() *walker {
 		initMode:       initValues,
 		parser:         parser.New(),
 		matcher:        matcher.New(),
+		decoder:        decoder.New(),
 	}
 }
 
@@ -312,7 +314,7 @@ func (w *walker) setIfNeeded(temp, rv reflect.Value, tags map[string]tag.Tag) er
 }
 
 func (w *walker) parseField(rv reflect.Value, typ reflect.Type, value string) error {
-	if dec := decoder.FromReflectValue(rv); dec != nil {
+	if dec := w.decoder.ToDecoder(rv); dec != nil {
 		return dec.Decode(value)
 	}
 
@@ -444,7 +446,7 @@ func (w *walker) parseMap(rv reflect.Value, path []tag.TagMap) error {
 }
 
 func (w *walker) hasParserOrSetter(rv reflect.Value, typ reflect.Type) bool {
-	if dec := decoder.FromReflectValue(reflect.New(typ).Elem()); dec != nil {
+	if dec := w.decoder.ToDecoder(reflect.New(typ).Elem()); dec != nil {
 		return true
 	}
 

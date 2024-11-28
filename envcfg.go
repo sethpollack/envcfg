@@ -3,6 +3,7 @@ package envcfg
 import (
 	"reflect"
 
+	"github.com/sethpollack/envcfg/internal/decoder"
 	"github.com/sethpollack/envcfg/internal/loader"
 	"github.com/sethpollack/envcfg/internal/matcher"
 	"github.com/sethpollack/envcfg/internal/parser"
@@ -137,6 +138,13 @@ func WithNotEmptyTag(tag string) Option {
 func WithDisableFallback() Option {
 	return func(e *envcfg) {
 		e.opts = append(e.opts, matcher.WithDisableFallback())
+	}
+}
+
+// WithDecoder registers a custom decoder function for a specific interface.
+func WithDecoder(iface any, f decoder.DecodeBuilderFunc) Option {
+	return func(e *envcfg) {
+		e.opts = append(e.opts, decoder.WithDecoder(iface, f))
 	}
 }
 
