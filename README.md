@@ -1,9 +1,8 @@
-<p align="center">
-  <h1 align="center">envcfg</h1>
-  <p align="center">Parse environment variables into Go structs with minimal boilerplate and first-class support for complex data structures</p>
-</p>
+# envcfg
 
-## Badges
+Parse environment variables into Go structs with minimal boilerplate and first-class support for complex data structures
+
+---
 
 [![Go Reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/sethpollack/envcfg)
 [![Go Report Card](https://img.shields.io/badge/go%20report-A+-brightgreen?logo=go&style=flat-square)](https://goreportcard.com/report/github.com/sethpollack/envcfg)
@@ -14,14 +13,34 @@
 
 
 ## Key Features
-- 🚀 Intuitive struct parsing with minimal boilerplate
-- 📦 Zero dependencies (TODO)
-- 🎯 Automatic prefix matching for nested fields
-- 🧩 First-class support for complex data structures:
-    - Nested structs
-    - Slices: delimited, indexed, structs
-    - Maps: delimited, flat keys, structs
-- 🛠️ Highly customizable with pluggable components
+
+### ✨ Zero Configuration Philosophy
+- Field names just work (snake or camel)
+- Nested structs automatically create prefixes
+- No special tags needed
+
+### 🔄 Smart Tag Fallbacks
+- When field name doesn't match, tries existing json/yaml/toml etc.. tags
+- Explicit env tags available and take highest precedence, but rarely needed
+
+### 🎯 Simple Environment Variables
+- One string value per variable
+- No need to encode complex data in environment values
+
+### 🧩 Complex Types Made Simple
+- Maps: `SETTINGS_KEY=value`
+- Arrays: `PORTS_0=8080`
+- Nested structs: `REDIS_HOST=localhost`
+- Slice of structs: `SERVERS_0_HOST=host1`
+- Map of structs: `DATABASES_PRIMARY_HOST=host1`
+
+### 📦 Compatible With Popular Libraries
+- Most features from popular libraries available
+
+### 🛠️ Fully Configurable
+- No lock-in to specific tag formats, tags are all configurable
+- Default settings are all configurable
+- Parsers/decoders are all configurable
 
 ## Table of Contents
 - [Installation](#installation)
@@ -29,7 +48,6 @@
 - [Types](#types)
 - [Decoders](#decoders)
 - [Struct Tags](#struct-tags)
-  - [Match Options](#match-options)
   - [Init Options](#init-options)
 - [Field Name Mapping](#field-name-mapping)
 - [Functions](#functions)
@@ -39,7 +57,6 @@
     - [Custom Parser Functions](#custom-parser-functions)
     - [Custom Decoder Functions](#custom-decoder-functions)
     - [Loader Options](#loader-options)
-
 
 ## Installation
 
@@ -201,6 +218,7 @@ Config:
 
 
 ## Types
+
 - `string`
 - `int`, `int8`, `int16`, `int32`, `int64`
 - `uint`, `uint8`, `uint16`, `uint32`, `uint64`
@@ -211,12 +229,19 @@ Config:
 - `slices - of any supported type`
 - `maps - keys and values of any supported type`
 
+> [!NOTE]
+> Type support can be extended using the `WithKindParser` and `WithTypeParser` options.
+
 ## Decoders
 
 - `envcfg.Decoder`
 - `flag.Value`
 - `encoding.TextUnmarshaler`
 - `encoding.BinaryUnmarshaler`
+
+> [!NOTE]
+> Decoder support can be extended using the `WithDecoder` option.
+
 
 ## Struct Tags
 
