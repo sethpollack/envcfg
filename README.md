@@ -326,7 +326,7 @@ type Config struct {
 | `WithExpand` | Enables environment variable expansion by default | `false` |
 | `WithNotEmpty` | Enables validating that values are not empty by default | `false` |
 | `WithRequired` | Enables marking fields as required by default | `false` |
-| `WithDisableFallback` | Disables fallback to `env` tag value when no other matches are found | `false` |
+| `WithDisableFallback` | Enables strict matching using the `env` tag | `false` |
 
 #### Custom Parser Functions
 
