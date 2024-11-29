@@ -96,6 +96,24 @@ func WithNotEmptyTag(tag string) any {
 	return matcher.WithNotEmptyTag(tag)
 }
 
+// WithRequired is a global setting to validate that values are required.
+// By default, fields are not required.
+func WithRequired() any {
+	return matcher.WithRequired()
+}
+
+// WithNotEmpty is a global setting to validate that values are not empty.
+// By default, empty values are not allowed.
+func WithNotEmpty() any {
+	return matcher.WithNotEmpty()
+}
+
+// WithExpand is a global setting to expand environment variables in values.
+// By default, environment variables are not expanded.
+func WithExpand() any {
+	return matcher.WithExpand()
+}
+
 // WithDisableFallback enforces strict matching using the "env" tag.
 // By default, it will try the field name, snake case field name, and all struct tags until a match is found.
 func WithDisableFallback() any {

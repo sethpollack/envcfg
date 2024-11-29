@@ -323,6 +323,9 @@ type Config struct {
 | `WithDecodeUnset` | Enables decoding unset environment variables by default | `false` |
 | `WithInitNever` | Sets the initialization strategy to never | `never` |
 | `WithInitAlways` | Sets the initialization strategy to always | `always` |
+| `WithExpand` | Enables environment variable expansion by default | `false` |
+| `WithNotEmpty` | Enables validating that values are not empty by default | `false` |
+| `WithRequired` | Enables marking fields as required by default | `false` |
 | `WithDisableFallback` | Disables fallback to `env` tag value when no other matches are found | `false` |
 
 #### Custom Parser Functions

@@ -49,6 +49,24 @@ func WithRequiredTag(tag string) Option {
 	}
 }
 
+func WithExpand() Option {
+	return func(m *Matcher) {
+		m.expand = true
+	}
+}
+
+func WithRequired() Option {
+	return func(m *Matcher) {
+		m.required = true
+	}
+}
+
+func WithNotEmpty() Option {
+	return func(m *Matcher) {
+		m.notEmpty = true
+	}
+}
+
 func WithDisableFallback() Option {
 	return func(m *Matcher) {
 		m.disableFallback = true
@@ -56,15 +74,21 @@ func WithDisableFallback() Option {
 }
 
 type Matcher struct {
-	tagName         string
-	defaultTag      string
-	expandTag       string
-	fileTag         string
-	notEmptyTag     string
-	requiredTag     string
+	// tags
+	tagName     string
+	defaultTag  string
+	expandTag   string
+	fileTag     string
+	notEmptyTag string
+	requiredTag string
+	// default options
+	expand          bool
+	required        bool
+	notEmpty        bool
 	disableFallback bool
-	loader          *loader.Loader
-	envVars         map[string]string
+
+	loader  *loader.Loader
+	envVars map[string]string
 }
 
 func New() *Matcher {
@@ -407,7 +431,17 @@ func (m *Matcher) expandValue(value string) string {
 func (m *Matcher) parseOptions(tm tag.TagMap) map[string]string {
 	opts := map[string]string{}
 
-	// first check for first class tags
+	if m.expand {
+		opts[m.expandTag] = "true"
+	}
+
+	if m.required {
+		opts[m.requiredTag] = "true"
+	}
+
+	if m.notEmpty {
+		opts[m.notEmptyTag] = "true"
+	}
 
 	if tag, ok := tm.Tags[m.requiredTag]; ok {
 		opts[m.requiredTag] = tag.Value
