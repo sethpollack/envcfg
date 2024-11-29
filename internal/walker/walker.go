@@ -128,6 +128,10 @@ func (w *walker) Build(opts ...any) error {
 		}
 	}
 
+	if err := w.decoder.Build(opts...); err != nil {
+		return err
+	}
+
 	if err := w.parser.Build(opts...); err != nil {
 		return err
 	}
