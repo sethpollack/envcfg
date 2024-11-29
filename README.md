@@ -2,8 +2,6 @@
 
 Parse environment variables into Go structs with minimal boilerplate and first-class support for complex data structures
 
----
-
 [![Go Reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/sethpollack/envcfg)
 [![Go Report Card](https://img.shields.io/badge/go%20report-A+-brightgreen?logo=go&style=flat-square)](https://goreportcard.com/report/github.com/sethpollack/envcfg)
 [![Coverage](https://img.shields.io/codecov/c/github/sethpollack/envcfg?logo=codecov&style=flat-square)](https://codecov.io/gh/sethpollack/envcfg)
