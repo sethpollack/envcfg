@@ -8,7 +8,6 @@ import (
 
 type Source interface {
 	Load() (map[string]string, error)
-	Build(opts ...any) error
 }
 
 type Option func(*Loader)
@@ -196,12 +195,6 @@ func (l *Loader) Build(opts ...any) error {
 		l.sources = append(l.sources, &osSource{})
 	}
 
-	for _, s := range l.sources {
-		if err := s.Build(opts...); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -269,10 +262,6 @@ func (e *envSource) Load() (map[string]string, error) {
 	return e.envs, nil
 }
 
-func (e *envSource) Build(opts ...any) error {
-	return nil
-}
-
 type fileSource struct {
 	path string
 }
@@ -289,10 +278,6 @@ func (f *fileSource) Load() (map[string]string, error) {
 	}
 
 	return toMap(strings.Split(string(bytes), "\n")), nil
-}
-
-func (f *fileSource) Build(opts ...any) error {
-	return nil
 }
 
 func toMap(env []string) map[string]string {
