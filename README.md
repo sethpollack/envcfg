@@ -223,9 +223,9 @@ Config:
 - `bool`
 - `float32`, `float64`
 - `time.Duration`
-- `struct`
-- `slices - of any supported type`
-- `maps - keys and values of any supported type`
+- `structs`
+- `slices`
+- `maps`
 
 > [!NOTE]
 > Type support can be extended using the `WithKindParser` and `WithTypeParser` options.
