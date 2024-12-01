@@ -9,6 +9,7 @@ import (
 
 	"github.com/sethpollack/envcfg"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseString(t *testing.T) {
@@ -31,7 +32,7 @@ func TestParseString(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		CamelCase:    "camel case",
 		CamelCasePtr: strPtr("camel case ptr"),
@@ -66,7 +67,7 @@ func TestParseBool(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		CamelCase:    trueVal,
 		CamelCasePtr: &trueVal,
@@ -136,7 +137,7 @@ func TestParseInt(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		Int:       123,
 		IntPtr:    &i,
@@ -195,7 +196,7 @@ func TestParseUInt(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		Uint:      123,
 		UintPtr:   &u,
@@ -229,7 +230,7 @@ func TestParseFloat(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		Float32:    f32,
 		Float32Ptr: &f32,
@@ -330,7 +331,7 @@ func TestParseSlice(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		Slice:                 []string{"a", "b", "c"},
 		PtrSlice:              []*string{strPtr("a"), strPtr("b"), strPtr("c")},
@@ -401,7 +402,7 @@ func TestParseSliceOfStructs(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{Slice: []Inner{
 		{Value: "a", CamelValue: "a", TagValue: "a"},
 		{Value: "b", CamelValue: "b", TagValue: "b"},
@@ -421,7 +422,7 @@ func TestParseMap(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		StringMap: map[string]string{"a": "1", "b": "2", "c": "3"},
 		IntMap:    map[int]int{1: 1, 2: 2, 3: 3},
@@ -463,7 +464,7 @@ func TestMapOfStructs(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		Map: map[string]Inner{
 			"a":   {Key: "a", CamelKey: "a", SnakeKey: "a", TagKey: "a"},
@@ -489,7 +490,7 @@ func TestParseEmptyPtr(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		Config: &Inner{String: "hello"},
 		Empty:  nil,
@@ -514,7 +515,7 @@ func TestParseNested(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{Inner: Inner{String: "hello", CamelString: "hello", TagString: "hello"}}, cfg)
 }
 
@@ -532,7 +533,7 @@ func TestParseNestedPtr(t *testing.T) {
 	cfg := Outer{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Outer{Config: &Config{String: "hello"}}, cfg)
 }
 
@@ -550,7 +551,7 @@ func TestParseNestedPrefix(t *testing.T) {
 	cfg := Outer{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Outer{Config: Config{String: "hello"}}, cfg)
 }
 
@@ -568,7 +569,7 @@ func TestParseNestedTag(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{Inner: Inner{String: "hello"}}, cfg)
 }
 
@@ -586,7 +587,7 @@ func TestParseEmbedded(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		Base: Base{
 			BaseField: "base",
@@ -610,7 +611,7 @@ func TestParseTags(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		EnvString:          "hello",
 		JSONString:         "hello",
@@ -638,7 +639,7 @@ func TestParseWithParserFunc(t *testing.T) {
 		return &Impl{Value: value}, nil
 	}))
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{Inter: &Impl{Value: "value"}}, cfg)
 }
 
@@ -653,7 +654,7 @@ func TestParseDuration(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		Duration:    1 * time.Second,
 		DurationPtr: durationPtr(1 * time.Second),
@@ -682,7 +683,7 @@ func TestParseURL(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		URL:    url.URL{Scheme: "http", Host: "example.com"},
 		URLPtr: &url.URL{Scheme: "http", Host: "example.com"},
@@ -789,7 +790,7 @@ func TestParseInitValues(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		String:           "hello",
 		StringPtr:        strPtr("hello"),
@@ -864,7 +865,7 @@ func TestParseInitNever(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg, envcfg.WithInitNever())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		EmptyStringPtr:   nil,
 		EmptyIntPtr:      nil,
@@ -900,7 +901,7 @@ func TestParseInitAlways(t *testing.T) {
 	cfg := Config{}
 	err := envcfg.Parse(&cfg, envcfg.WithInitAlways())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Config{
 		EmptyString:   strPtr(""),
 		EmptyInt:      intPtr(0),
@@ -921,7 +922,7 @@ func TestParseDecodeUnset(t *testing.T) {
 
 	cfg := Config{}
 	err := envcfg.Parse(&cfg)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 type Unset string

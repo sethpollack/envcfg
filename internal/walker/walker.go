@@ -11,141 +11,50 @@ import (
 	"github.com/sethpollack/envcfg/internal/tag"
 )
 
-type initMode int
+type InitMode int
 
 const (
-	initAlways initMode = iota
-	initNever
-	initValues
+	InitValues InitMode = iota
+	InitAlways
+	InitNever
 )
 
-type walker struct {
-	tagName        string
-	delimTag       string
-	defaultDelim   string
-	sepTag         string
-	defaultSep     string
-	initTag        string
-	initMode       initMode
-	ignoreTag      string
-	decodeUnsetTag string
-	decodeUnset    bool
+type Walker struct {
+	TagName        string
+	DelimTag       string
+	DefaultDelim   string
+	SepTag         string
+	DefaultSep     string
+	InitTag        string
+	InitMode       InitMode
+	IgnoreTag      string
+	DecodeUnsetTag string
+	DecodeUnset    bool
 
-	parser  *parser.Parser
-	matcher *matcher.Matcher
-	decoder *decoder.Decoder
+	Parser  *parser.Parser
+	Matcher *matcher.Matcher
+	Decoder *decoder.Decoder
 }
 
-type Option func(*walker)
+func New() *Walker {
+	return &Walker{
+		TagName:        "env",
+		DelimTag:       "delim",
+		DefaultDelim:   ",",
+		SepTag:         "sep",
+		DefaultSep:     ":",
+		InitTag:        "init",
+		IgnoreTag:      "ignore",
+		DecodeUnsetTag: "decodeunset",
+		InitMode:       InitValues,
 
-func WithTagName(tag string) Option {
-	return func(w *walker) {
-		w.tagName = tag
-	}
-}
-
-func WithDelimiterTag(tag string) Option {
-	return func(w *walker) {
-		w.delimTag = tag
-	}
-}
-
-func WithDelimiter(delim string) Option {
-	return func(w *walker) {
-		w.defaultDelim = delim
-	}
-}
-
-func WithSeparatorTag(tag string) Option {
-	return func(w *walker) {
-		w.sepTag = tag
+		Parser:  parser.New(),
+		Matcher: matcher.New(),
+		Decoder: decoder.New(),
 	}
 }
 
-func WithSeparator(sep string) Option {
-	return func(w *walker) {
-		w.defaultSep = sep
-	}
-}
-
-func WithIgnoreTag(tag string) Option {
-	return func(w *walker) {
-		w.ignoreTag = tag
-	}
-}
-
-func WithDecodeUnsetTag(tag string) Option {
-	return func(w *walker) {
-		w.decodeUnsetTag = tag
-	}
-}
-
-func WithDecodeUnset() Option {
-	return func(w *walker) {
-		w.decodeUnset = true
-	}
-}
-
-func WithInitTag(tag string) Option {
-	return func(w *walker) {
-		w.initTag = tag
-	}
-}
-
-func WithInitNever() Option {
-	return func(w *walker) {
-		w.initMode = initNever
-	}
-}
-
-func WithInitAlways() Option {
-	return func(w *walker) {
-		w.initMode = initAlways
-	}
-}
-
-func New() *walker {
-	return &walker{
-		tagName:        "env",
-		delimTag:       "delim",
-		defaultDelim:   ",",
-		sepTag:         "sep",
-		defaultSep:     ":",
-		initTag:        "init",
-		ignoreTag:      "ignore",
-		decodeUnsetTag: "decodeunset",
-		initMode:       initValues,
-		parser:         parser.New(),
-		matcher:        matcher.New(),
-		decoder:        decoder.New(),
-	}
-}
-
-func (w *walker) Build(opts ...any) error {
-	for _, opt := range opts {
-		if v, ok := opt.(Option); ok {
-			v(w)
-		}
-	}
-
-	if err := w.decoder.Build(opts...); err != nil {
-		return err
-	}
-
-	if err := w.parser.Build(opts...); err != nil {
-		return err
-	}
-
-	if err := w.matcher.Build(
-		// Pass the tag name as an option to the matcher
-		append(opts, matcher.WithTagName(w.tagName))...); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (w *walker) Walk(v any) error {
+func (w *Walker) Walk(v any) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr {
 		return fmt.Errorf("expected a pointer to a struct, got %T", v)
@@ -159,7 +68,7 @@ func (w *walker) Walk(v any) error {
 	return w.walkStruct(elem, []tag.TagMap{})
 }
 
-func (w *walker) walkStruct(rv reflect.Value, path []tag.TagMap) error {
+func (w *Walker) walkStruct(rv reflect.Value, path []tag.TagMap) error {
 	rt := rv.Type()
 	// Iterate over each field in the struct.
 	for i := 0; i < rt.NumField(); i++ {
@@ -180,7 +89,7 @@ func (w *walker) walkStruct(rv reflect.Value, path []tag.TagMap) error {
 	return nil
 }
 
-func (w *walker) walkStructField(rv reflect.Value, path []tag.TagMap) error {
+func (w *Walker) walkStructField(rv reflect.Value, path []tag.TagMap) error {
 	current := path[len(path)-1]
 
 	// If the field is ignored, skip it.
@@ -208,7 +117,7 @@ func (w *walker) walkStructField(rv reflect.Value, path []tag.TagMap) error {
 	return w.setIfNeeded(temp, rv, current.Tags)
 }
 
-func (w *walker) walkNestedStructField(rv reflect.Value, path []tag.TagMap) error {
+func (w *Walker) walkNestedStructField(rv reflect.Value, path []tag.TagMap) error {
 	switch rv.Kind() {
 	case reflect.Struct:
 		return w.walkStruct(rv, path)
@@ -221,10 +130,10 @@ func (w *walker) walkNestedStructField(rv reflect.Value, path []tag.TagMap) erro
 	return nil
 }
 
-func (w *walker) walkSlice(rv reflect.Value, path []tag.TagMap) error {
+func (w *Walker) walkSlice(rv reflect.Value, path []tag.TagMap) error {
 	rv.Set(reflect.MakeSlice(rv.Type(), 0, 0))
 
-	value, found, err := w.matcher.GetValue(path)
+	value, found, err := w.Matcher.GetValue(path)
 	if err != nil {
 		return err
 	}
@@ -239,11 +148,11 @@ func (w *walker) walkSlice(rv reflect.Value, path []tag.TagMap) error {
 		elemPath := append(path, tag.TagMap{
 			FieldName: fmt.Sprintf("%d", i),
 			Tags: map[string]tag.Tag{
-				w.tagName: {Value: fmt.Sprintf("%d", i)},
+				w.TagName: {Value: fmt.Sprintf("%d", i)},
 			},
 		})
 
-		if !w.matcher.HasPrefix(elemPath) {
+		if !w.Matcher.HasPrefix(elemPath) {
 			return nil
 		}
 
@@ -261,7 +170,7 @@ func (w *walker) walkSlice(rv reflect.Value, path []tag.TagMap) error {
 	}
 }
 
-func (w *walker) walkMap(rv reflect.Value, path []tag.TagMap) error {
+func (w *Walker) walkMap(rv reflect.Value, path []tag.TagMap) error {
 	current := path[len(path)-1]
 
 	mapType := rv.Type()
@@ -270,7 +179,7 @@ func (w *walker) walkMap(rv reflect.Value, path []tag.TagMap) error {
 		rv.Set(reflect.MakeMap(mapType))
 	}
 
-	value, _, err := w.matcher.GetValue(path)
+	value, _, err := w.Matcher.GetValue(path)
 	if err != nil {
 		return err
 	}
@@ -282,10 +191,10 @@ func (w *walker) walkMap(rv reflect.Value, path []tag.TagMap) error {
 	return w.parseMap(rv, path)
 }
 
-func (w *walker) parseStructField(rv reflect.Value, path []tag.TagMap) error {
+func (w *Walker) parseStructField(rv reflect.Value, path []tag.TagMap) error {
 	current := path[len(path)-1]
 
-	value, found, err := w.matcher.GetValue(path)
+	value, found, err := w.Matcher.GetValue(path)
 	if err != nil {
 		return err
 	}
@@ -299,14 +208,14 @@ func (w *walker) parseStructField(rv reflect.Value, path []tag.TagMap) error {
 	return w.parseField(rv, rv.Type(), value)
 }
 
-func (w *walker) setIfNeeded(temp, rv reflect.Value, tags map[string]tag.Tag) error {
+func (w *Walker) setIfNeeded(temp, rv reflect.Value, tags map[string]tag.Tag) error {
 	initMode := w.parseInitMode(tags)
 
-	if initMode == initNever {
+	if initMode == InitNever {
 		return nil
 	}
 
-	if initMode == initValues && isZero(temp) {
+	if initMode == InitValues && isZero(temp) {
 		return nil
 	}
 
@@ -322,8 +231,8 @@ func (w *walker) setIfNeeded(temp, rv reflect.Value, tags map[string]tag.Tag) er
 	return nil
 }
 
-func (w *walker) parseField(rv reflect.Value, typ reflect.Type, value string) error {
-	if dec := w.decoder.ToDecoder(rv); dec != nil {
+func (w *Walker) parseField(rv reflect.Value, typ reflect.Type, value string) error {
+	if dec := w.Decoder.ToDecoder(rv); dec != nil {
 		return dec.Decode(value)
 	}
 
@@ -333,7 +242,7 @@ func (w *walker) parseField(rv reflect.Value, typ reflect.Type, value string) er
 		nrv = rv.Elem()
 	}
 
-	if newValue, found, err := w.parser.ParseType(typ, value); found {
+	if newValue, found, err := w.Parser.ParseType(typ, value); found {
 		if err != nil {
 			return err
 		}
@@ -346,7 +255,7 @@ func (w *walker) parseField(rv reflect.Value, typ reflect.Type, value string) er
 		return nil
 	}
 
-	if newValue, found, err := w.parser.ParseKind(typ.Kind(), value); found {
+	if newValue, found, err := w.Parser.ParseKind(typ.Kind(), value); found {
 		if err != nil {
 			return err
 		}
@@ -362,13 +271,10 @@ func (w *walker) parseField(rv reflect.Value, typ reflect.Type, value string) er
 	return nil
 }
 
-func (w *walker) parseDelimitedSlice(rv reflect.Value, value string, path []tag.TagMap) error {
+func (w *Walker) parseDelimitedSlice(rv reflect.Value, value string, path []tag.TagMap) error {
 	current := path[len(path)-1]
 
-	delim := w.defaultDelim
-	if d, ok := current.Tags[w.delimTag]; ok {
-		delim = d.Value
-	}
+	delim := w.parseDelimiter(current.Tags)
 
 	elemType := rv.Type().Elem()
 
@@ -385,20 +291,13 @@ func (w *walker) parseDelimitedSlice(rv reflect.Value, value string, path []tag.
 	return nil
 }
 
-func (w *walker) parseDelimitedMap(rv reflect.Value, value string, tags map[string]tag.Tag) error {
+func (w *Walker) parseDelimitedMap(rv reflect.Value, value string, tags map[string]tag.Tag) error {
 	mapType := rv.Type()
 	elemType := mapType.Elem()
 	keyType := mapType.Key()
 
-	delim := w.defaultDelim
-	if d, ok := tags[w.delimTag]; ok {
-		delim = d.Value
-	}
-
-	sep := w.defaultSep
-	if s, ok := tags[w.sepTag]; ok {
-		sep = s.Value
-	}
+	delim := w.parseDelimiter(tags)
+	sep := w.parseSeparator(tags)
 
 	for _, part := range strings.Split(value, delim) {
 		kv := strings.SplitN(part, sep, 2)
@@ -422,11 +321,11 @@ func (w *walker) parseDelimitedMap(rv reflect.Value, value string, tags map[stri
 	return nil
 }
 
-func (w *walker) parseMap(rv reflect.Value, path []tag.TagMap) error {
+func (w *Walker) parseMap(rv reflect.Value, path []tag.TagMap) error {
 	keyType := rv.Type().Key()
 	elemType := rv.Type().Elem()
 
-	keys := w.matcher.GetMapKeys(path)
+	keys := w.Matcher.GetMapKeys(path)
 
 	for _, key := range keys {
 		newKey := reflect.New(keyType).Elem()
@@ -436,7 +335,7 @@ func (w *walker) parseMap(rv reflect.Value, path []tag.TagMap) error {
 
 		valuePath := append(path, tag.TagMap{
 			FieldName: key,
-			Tags:      map[string]tag.Tag{w.tagName: {Value: key}},
+			Tags:      map[string]tag.Tag{w.TagName: {Value: key}},
 		})
 
 		newValue := reflect.New(elemType).Elem()
@@ -454,57 +353,57 @@ func (w *walker) parseMap(rv reflect.Value, path []tag.TagMap) error {
 	return nil
 }
 
-func (w *walker) hasParserOrSetter(rv reflect.Value, typ reflect.Type) bool {
-	if dec := w.decoder.ToDecoder(reflect.New(typ).Elem()); dec != nil {
+func (w *Walker) hasParserOrSetter(rv reflect.Value, typ reflect.Type) bool {
+	if dec := w.Decoder.ToDecoder(reflect.New(typ).Elem()); dec != nil {
 		return true
 	}
 
 	if isPtr(rv) {
-		return w.parser.HasParser(typ.Elem())
+		return w.Parser.HasParser(typ.Elem())
 	}
 
-	return w.parser.HasParser(typ)
+	return w.Parser.HasParser(typ)
 }
 
-func (w *walker) parseInitMode(tags map[string]tag.Tag) initMode {
-	initMode := w.initMode
+func (w *Walker) parseInitMode(tags map[string]tag.Tag) InitMode {
+	initMode := w.InitMode
 
-	if tag, ok := tags[w.initTag]; ok {
+	if tag, ok := tags[w.InitTag]; ok {
 		switch tag.Value {
 		case "always":
-			initMode = initAlways
+			initMode = InitAlways
 		case "never":
-			initMode = initNever
+			initMode = InitNever
 		case "values":
-			initMode = initValues
+			initMode = InitValues
 		}
 	}
 
-	if tagName, ok := tags[w.tagName]; ok {
-		switch tagName.Options[w.initTag] {
+	if tagName, ok := tags[w.TagName]; ok {
+		switch tagName.Options[w.InitTag] {
 		case "always":
-			initMode = initAlways
+			initMode = InitAlways
 		case "never":
-			initMode = initNever
+			initMode = InitNever
 		case "values":
-			initMode = initValues
+			initMode = InitValues
 		}
 	}
 
 	return initMode
 }
 
-func (w *walker) parseIgnoreOption(tags map[string]tag.Tag) bool {
-	if _, ok := tags[w.ignoreTag]; ok {
+func (w *Walker) parseIgnoreOption(tags map[string]tag.Tag) bool {
+	if _, ok := tags[w.IgnoreTag]; ok {
 		return true
 	}
 
-	if tagName, ok := tags[w.tagName]; ok {
+	if tagName, ok := tags[w.TagName]; ok {
 		if tagName.Value == "-" {
 			return true
 		}
 
-		if _, ok := tagName.Options[w.ignoreTag]; ok {
+		if _, ok := tagName.Options[w.IgnoreTag]; ok {
 			return true
 		}
 	}
@@ -512,18 +411,46 @@ func (w *walker) parseIgnoreOption(tags map[string]tag.Tag) bool {
 	return false
 }
 
-func (w *walker) parseDecodeUnsetOption(tags map[string]tag.Tag) bool {
-	if _, ok := tags[w.decodeUnsetTag]; ok {
+func (w *Walker) parseDecodeUnsetOption(tags map[string]tag.Tag) bool {
+	if _, ok := tags[w.DecodeUnsetTag]; ok {
 		return true
 	}
 
-	if tagName, ok := tags[w.tagName]; ok {
-		if _, ok := tagName.Options[w.decodeUnsetTag]; ok {
+	if tagName, ok := tags[w.TagName]; ok {
+		if _, ok := tagName.Options[w.DecodeUnsetTag]; ok {
 			return true
 		}
 	}
 
-	return false
+	return w.DecodeUnset
+}
+
+func (w *Walker) parseDelimiter(tags map[string]tag.Tag) string {
+	if d, ok := tags[w.DelimTag]; ok {
+		return d.Value
+	}
+
+	if tagName, ok := tags[w.TagName]; ok {
+		if delim, ok := tagName.Options[w.DelimTag]; ok {
+			return delim
+		}
+	}
+
+	return w.DefaultDelim
+}
+
+func (w *Walker) parseSeparator(tags map[string]tag.Tag) string {
+	if s, ok := tags[w.SepTag]; ok {
+		return s.Value
+	}
+
+	if tagName, ok := tags[w.TagName]; ok {
+		if sep, ok := tagName.Options[w.SepTag]; ok {
+			return sep
+		}
+	}
+
+	return w.DefaultSep
 }
 
 func isZero(rv reflect.Value) bool {

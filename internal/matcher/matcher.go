@@ -7,121 +7,36 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sethpollack/envcfg/internal/loader"
 	"github.com/sethpollack/envcfg/internal/tag"
 )
 
-type Option func(*Matcher)
-
-func WithTagName(tagName string) Option {
-	return func(m *Matcher) {
-		m.tagName = tagName
-	}
-}
-
-func WithDefaultTag(tag string) Option {
-	return func(m *Matcher) {
-		m.defaultTag = tag
-	}
-}
-
-func WithExpandTag(tag string) Option {
-	return func(m *Matcher) {
-		m.expandTag = tag
-	}
-}
-
-func WithFileTag(tag string) Option {
-	return func(m *Matcher) {
-		m.fileTag = tag
-	}
-}
-
-func WithNotEmptyTag(tag string) Option {
-	return func(m *Matcher) {
-		m.notEmptyTag = tag
-	}
-}
-
-func WithRequiredTag(tag string) Option {
-	return func(m *Matcher) {
-		m.requiredTag = tag
-	}
-}
-
-func WithExpand() Option {
-	return func(m *Matcher) {
-		m.expand = true
-	}
-}
-
-func WithRequired() Option {
-	return func(m *Matcher) {
-		m.required = true
-	}
-}
-
-func WithNotEmpty() Option {
-	return func(m *Matcher) {
-		m.notEmpty = true
-	}
-}
-
-func WithDisableFallback() Option {
-	return func(m *Matcher) {
-		m.disableFallback = true
-	}
-}
-
 type Matcher struct {
 	// tags
-	tagName     string
-	defaultTag  string
-	expandTag   string
-	fileTag     string
-	notEmptyTag string
-	requiredTag string
+	TagName     string
+	DefaultTag  string
+	ExpandTag   string
+	FileTag     string
+	NotEmptyTag string
+	RequiredTag string
 	// default options
-	expand          bool
-	required        bool
-	notEmpty        bool
-	disableFallback bool
+	Expand          bool
+	Required        bool
+	NotEmpty        bool
+	DisableFallback bool
 
-	loader  *loader.Loader
-	envVars map[string]string
+	EnvVars map[string]string
 }
 
 func New() *Matcher {
 	return &Matcher{
-		tagName:     "env",
-		defaultTag:  "default",
-		expandTag:   "expand",
-		fileTag:     "file",
-		notEmptyTag: "notempty",
-		requiredTag: "required",
-		loader:      loader.New(),
+		TagName:     "env",
+		DefaultTag:  "default",
+		ExpandTag:   "expand",
+		FileTag:     "file",
+		NotEmptyTag: "notempty",
+		RequiredTag: "required",
+		EnvVars:     map[string]string{},
 	}
-}
-
-func (m *Matcher) Build(opts ...any) error {
-	for _, opt := range opts {
-		if v, ok := opt.(Option); ok {
-			v(m)
-		}
-	}
-
-	if err := m.loader.Build(opts...); err != nil {
-		return err
-	}
-
-	envs, err := m.loader.Load()
-	if err != nil {
-		return err
-	}
-
-	m.envVars = envs
-
-	return nil
 }
 
 func (m *Matcher) GetValue(path []tag.TagMap) (string, bool, error) {
@@ -130,38 +45,38 @@ func (m *Matcher) GetValue(path []tag.TagMap) (string, bool, error) {
 	foundMatch, foundKey, foundValue := m.getValue("", path)
 
 	if !foundMatch {
-		if _, ok := opts[m.requiredTag]; ok {
+		if _, ok := opts[m.RequiredTag]; ok {
 			return "", false, fmt.Errorf("required field %s not found", fieldPath(path))
 		}
 
-		if _, ok := opts[m.defaultTag]; ok {
-			if _, ok := opts[m.expandTag]; ok {
-				return m.expandValue(opts[m.defaultTag]), true, nil
+		if _, ok := opts[m.DefaultTag]; ok {
+			if _, ok := opts[m.ExpandTag]; ok {
+				return m.expandValue(opts[m.DefaultTag]), true, nil
 			}
-			return opts[m.defaultTag], true, nil
+			return opts[m.DefaultTag], true, nil
 		}
 
 		return "", false, nil
 	}
 
-	if _, ok := opts[m.notEmptyTag]; ok && foundValue == "" {
+	if _, ok := opts[m.NotEmptyTag]; ok && foundValue == "" {
 		return "", true, fmt.Errorf("environment variable %s is empty", foundKey)
 	}
 
-	if _, ok := opts[m.fileTag]; ok {
+	if _, ok := opts[m.FileTag]; ok {
 		bytes, err := os.ReadFile(foundValue)
 		if err != nil {
 			return "", true, err
 		}
 
-		if _, ok := opts[m.expandTag]; ok {
+		if _, ok := opts[m.ExpandTag]; ok {
 			return m.expandValue(string(bytes)), true, nil
 		}
 
 		return string(bytes), true, nil
 	}
 
-	if _, ok := opts[m.expandTag]; ok {
+	if _, ok := opts[m.ExpandTag]; ok {
 		return m.expandValue(foundValue), true, nil
 	}
 
@@ -192,7 +107,7 @@ func (m *Matcher) GetMapKeys(path []tag.TagMap) []string {
 func (m *Matcher) getPrimitiveMapKeys(path []tag.TagMap) []string {
 	uniqueKeys := make(map[string]struct{})
 
-	for key := range m.envVars {
+	for key := range m.EnvVars {
 		if found, prefix := m.toPrefix(key, "", path); found {
 			if key := parseMapKey(key, prefix, ""); key != "" {
 				uniqueKeys[key] = struct{}{}
@@ -213,7 +128,7 @@ func (m *Matcher) getSliceMapKeys(path []tag.TagMap) []string {
 
 	for i := 0; ; i++ {
 		found := false
-		for key := range m.envVars {
+		for key := range m.EnvVars {
 			if ok, prefix := m.toPrefix(key, "", path); ok {
 				if mapKey := parseMapKey(key, prefix, strconv.Itoa(i)); mapKey != "" {
 					uniqueKeys[mapKey] = struct{}{}
@@ -236,7 +151,7 @@ func (m *Matcher) getSliceMapKeys(path []tag.TagMap) []string {
 func (m *Matcher) getStructMapKeys(path []tag.TagMap) []string {
 	uniqueKeys := make(map[string]struct{})
 
-	for envVarName := range m.envVars {
+	for envVarName := range m.EnvVars {
 		if found, prefix := m.toPrefix(envVarName, "", path); found {
 			if key := m.findLongestMatchingKey(envVarName, prefix, path); key != "" {
 				uniqueKeys[key] = struct{}{}
@@ -263,7 +178,7 @@ func (m *Matcher) findLongestMatchingKey(key, prefix string, path []tag.TagMap) 
 
 		parsedTags := tag.ParseTags(field)
 
-		if tag, ok := parsedTags.Tags[m.tagName]; ok {
+		if tag, ok := parsedTags.Tags[m.TagName]; ok {
 			if mapKey := parseMapKey(key, prefix, strings.ToUpper(tag.Value)); mapKey != "" {
 				if len(tag.Value) > longestMatch {
 					longestMatch = len(tag.Value)
@@ -273,7 +188,7 @@ func (m *Matcher) findLongestMatchingKey(key, prefix string, path []tag.TagMap) 
 		}
 
 		for tagName, tag := range parsedTags.Tags {
-			if tag.Value == "" || m.isKnownTag(tagName) || m.disableFallback {
+			if tag.Value == "" || m.isKnownTag(tagName) || m.DisableFallback {
 				continue
 			}
 
@@ -293,7 +208,7 @@ func (m *Matcher) getValue(prefix string, path []tag.TagMap) (bool, string, stri
 	if len(path) == 0 {
 		envVarName := strings.ToUpper(prefix)
 
-		if value, ok := m.envVars[envVarName]; ok {
+		if value, ok := m.EnvVars[envVarName]; ok {
 			return true, envVarName, value
 		}
 
@@ -302,7 +217,7 @@ func (m *Matcher) getValue(prefix string, path []tag.TagMap) (bool, string, stri
 
 	current, rest := path[0], path[1:]
 
-	if tag, ok := current.Tags[m.tagName]; ok {
+	if tag, ok := current.Tags[m.TagName]; ok {
 		if prefix == "" {
 			if found, envvar, value := m.getValue(tag.Value, rest); found {
 				return found, envvar, value
@@ -315,7 +230,7 @@ func (m *Matcher) getValue(prefix string, path []tag.TagMap) (bool, string, stri
 	}
 
 	for tagName, tag := range current.Tags {
-		if tag.Value == "" || m.isKnownTag(tagName) || m.disableFallback {
+		if tag.Value == "" || m.isKnownTag(tagName) || m.DisableFallback {
 			continue
 		}
 
@@ -337,7 +252,7 @@ func (m *Matcher) hasPrefix(prefix string, path []tag.TagMap) bool {
 	if len(path) == 0 {
 		envVarName := strings.ToUpper(prefix)
 
-		for env := range m.envVars {
+		for env := range m.EnvVars {
 			if strings.HasPrefix(env, envVarName) {
 				return true
 			}
@@ -348,7 +263,7 @@ func (m *Matcher) hasPrefix(prefix string, path []tag.TagMap) bool {
 
 	current, rest := path[0], path[1:]
 
-	if tag, ok := current.Tags[m.tagName]; ok {
+	if tag, ok := current.Tags[m.TagName]; ok {
 		if prefix == "" {
 			if found := m.hasPrefix(tag.Value, rest); found {
 				return found
@@ -391,7 +306,7 @@ func (m *Matcher) toPrefix(key, prefix string, path []tag.TagMap) (bool, string)
 
 	current, rest := path[0], path[1:]
 
-	if tag, ok := current.Tags[m.tagName]; ok {
+	if tag, ok := current.Tags[m.TagName]; ok {
 		var newPrefix string
 		if prefix == "" {
 			newPrefix = tag.Value
@@ -425,64 +340,64 @@ func (m *Matcher) toPrefix(key, prefix string, path []tag.TagMap) (bool, string)
 }
 
 func (m *Matcher) expandValue(value string) string {
-	return os.Expand(value, func(s string) string { return m.envVars[s] })
+	return os.Expand(value, func(s string) string { return m.EnvVars[s] })
 }
 
 func (m *Matcher) parseOptions(tm tag.TagMap) map[string]string {
 	opts := map[string]string{}
 
-	if m.expand {
-		opts[m.expandTag] = "true"
+	if m.Expand {
+		opts[m.ExpandTag] = "true"
 	}
 
-	if m.required {
-		opts[m.requiredTag] = "true"
+	if m.Required {
+		opts[m.RequiredTag] = "true"
 	}
 
-	if m.notEmpty {
-		opts[m.notEmptyTag] = "true"
+	if m.NotEmpty {
+		opts[m.NotEmptyTag] = "true"
 	}
 
-	if tag, ok := tm.Tags[m.requiredTag]; ok {
-		opts[m.requiredTag] = tag.Value
+	if tag, ok := tm.Tags[m.RequiredTag]; ok {
+		opts[m.RequiredTag] = tag.Value
 	}
 
-	if tag, ok := tm.Tags[m.defaultTag]; ok {
-		opts[m.defaultTag] = tag.Value
+	if tag, ok := tm.Tags[m.DefaultTag]; ok {
+		opts[m.DefaultTag] = tag.Value
 	}
 
-	if tag, ok := tm.Tags[m.expandTag]; ok {
-		opts[m.expandTag] = tag.Value
+	if tag, ok := tm.Tags[m.ExpandTag]; ok {
+		opts[m.ExpandTag] = tag.Value
 	}
 
-	if tag, ok := tm.Tags[m.notEmptyTag]; ok {
-		opts[m.notEmptyTag] = tag.Value
+	if tag, ok := tm.Tags[m.NotEmptyTag]; ok {
+		opts[m.NotEmptyTag] = tag.Value
 	}
 
-	if tag, ok := tm.Tags[m.fileTag]; ok {
-		opts[m.fileTag] = tag.Value
+	if tag, ok := tm.Tags[m.FileTag]; ok {
+		opts[m.FileTag] = tag.Value
 	}
 
 	// then check for env tag options
-	if tagName, ok := tm.Tags[m.tagName]; ok {
-		if value, ok := tagName.Options[m.defaultTag]; ok {
-			opts[m.defaultTag] = value
+	if tagName, ok := tm.Tags[m.TagName]; ok {
+		if value, ok := tagName.Options[m.DefaultTag]; ok {
+			opts[m.DefaultTag] = value
 		}
 
-		if value, ok := tagName.Options[m.requiredTag]; ok {
-			opts[m.requiredTag] = value
+		if value, ok := tagName.Options[m.RequiredTag]; ok {
+			opts[m.RequiredTag] = value
 		}
 
-		if value, ok := tagName.Options[m.expandTag]; ok {
-			opts[m.expandTag] = value
+		if value, ok := tagName.Options[m.ExpandTag]; ok {
+			opts[m.ExpandTag] = value
 		}
 
-		if value, ok := tagName.Options[m.notEmptyTag]; ok {
-			opts[m.notEmptyTag] = value
+		if value, ok := tagName.Options[m.NotEmptyTag]; ok {
+			opts[m.NotEmptyTag] = value
 		}
 
-		if value, ok := tagName.Options[m.fileTag]; ok {
-			opts[m.fileTag] = value
+		if value, ok := tagName.Options[m.FileTag]; ok {
+			opts[m.FileTag] = value
 		}
 	}
 
@@ -491,12 +406,12 @@ func (m *Matcher) parseOptions(tm tag.TagMap) map[string]string {
 
 func (m *Matcher) isKnownTag(tagName string) bool {
 	tags := map[string]bool{
-		m.tagName:     true,
-		m.requiredTag: true,
-		m.defaultTag:  true,
-		m.expandTag:   true,
-		m.notEmptyTag: true,
-		m.fileTag:     true,
+		m.TagName:     true,
+		m.RequiredTag: true,
+		m.DefaultTag:  true,
+		m.ExpandTag:   true,
+		m.NotEmptyTag: true,
+		m.FileTag:     true,
 	}
 
 	_, ok := tags[tagName]

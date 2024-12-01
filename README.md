@@ -347,10 +347,11 @@ type Config struct {
 
 | Option | Description |
 |--------|-------------|
-| `WithSource` | Adds a custom source to the loader |
-| `WithEnvVarsSource` | Adds environment variables as a source |
-| `WithFileSource` | Adds a file as a source |
-| `WithOsEnvSource` | Adds the OS environment variables as a source |
+| `WithSource` | Adds a source to the loader |
+| `WithSources` | Adds multiple sources to the loader |
+| `WithOSEnvSource` | Adds OS environment variables as a source |
+| `WithMapEnvSource` | Uses the provided map of environment variables as a source |
+| `WithDotEnvSource` | Adds environment variables from a file as a source |
 | `WithDefaults` | Adds default values to the loader |
 | `WithPrefix` | Combines `WithTrimPrefix` and `WithHasPrefix` |
 | `WithSuffix` | Combines `WithTrimSuffix` and `WithHasSuffix` |

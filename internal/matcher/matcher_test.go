@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/sethpollack/envcfg/internal/loader"
 	"github.com/sethpollack/envcfg/internal/tag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetValue(t *testing.T) {
@@ -272,16 +272,14 @@ func TestGetValue(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			m := New()
-			if err := m.Build(loader.WithEnvVarsSource(tc.EnvVars)); err != nil {
-				assert.NoError(t, err)
-			}
+			m.EnvVars = tc.EnvVars
 
 			actual, _, err := m.GetValue(tc.Path)
 
 			if tc.ExpectedErr != nil {
 				assert.EqualError(t, err, tc.ExpectedErr.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			assert.Equal(t, tc.Expected, actual)
@@ -420,9 +418,7 @@ func TestHasPrefix(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
 			m := New()
-			if err := m.Build(loader.WithEnvVarsSource(tc.EnvVars)); err != nil {
-				assert.NoError(t, err)
-			}
+			m.EnvVars = tc.EnvVars
 
 			assert.Equal(t, tc.Expected, m.HasPrefix(tc.Path))
 		})
@@ -518,9 +514,7 @@ func TestGetMapKeys(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
 			m := New()
-			if err := m.Build(loader.WithEnvVarsSource(tc.EnvVars)); err != nil {
-				assert.NoError(t, err)
-			}
+			m.EnvVars = tc.EnvVars
 
 			assert.ElementsMatch(t, tc.Expected, m.GetMapKeys(tc.Path))
 		})

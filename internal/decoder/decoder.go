@@ -20,31 +20,14 @@ func (u wrapper) Decode(value string) error {
 
 type DecodeBuilderFunc func(v any, value string) error
 
-type Option func(*Decoder)
-
-func WithDecoder(iface any, f func(v any, value string) error) Option {
-	return func(r *Decoder) {
-		r.decoders[iface] = DecodeBuilderFunc(f)
-	}
-}
-
 type Decoder struct {
-	decoders map[any]DecodeBuilderFunc
+	Decoders map[any]DecodeBuilderFunc
 }
 
 func New() *Decoder {
 	return &Decoder{
-		decoders: make(map[any]DecodeBuilderFunc),
+		Decoders: make(map[any]DecodeBuilderFunc),
 	}
-}
-
-func (r *Decoder) Build(opts ...any) error {
-	for _, opt := range opts {
-		if v, ok := opt.(Option); ok {
-			v(r)
-		}
-	}
-	return nil
 }
 
 func (r *Decoder) ToDecoder(rv reflect.Value) Decode {
@@ -95,7 +78,7 @@ func (r *Decoder) toDecoder(v any) Decode {
 	}
 
 	// Check custom decoders
-	for iface, f := range r.decoders {
+	for iface, f := range r.Decoders {
 		if reflect.TypeOf(v).Implements(reflect.TypeOf(iface).Elem()) {
 			return &wrapper{func(value string) error {
 				return f(v, value)

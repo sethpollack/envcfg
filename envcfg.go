@@ -2,266 +2,413 @@ package envcfg
 
 import (
 	"reflect"
+	"regexp"
+	"strings"
 
 	"github.com/sethpollack/envcfg/internal/decoder"
 	"github.com/sethpollack/envcfg/internal/loader"
 	"github.com/sethpollack/envcfg/internal/matcher"
 	"github.com/sethpollack/envcfg/internal/parser"
 	"github.com/sethpollack/envcfg/internal/walker"
+	"github.com/sethpollack/envcfg/sources/dotenv"
+	"github.com/sethpollack/envcfg/sources/mapenv"
+	"github.com/sethpollack/envcfg/sources/osenv"
 )
 
+type Option func(*Options)
+
+type Options struct {
+	Walker  *walker.Walker
+	Loader  *loader.Loader
+	Decoder *decoder.Decoder
+	Parser  *parser.Parser
+	Matcher *matcher.Matcher
+}
+
+func Build(opts ...Option) (*Options, error) {
+	o := &Options{
+		Walker:  walker.New(),
+		Decoder: decoder.New(),
+		Loader:  loader.New(),
+		Matcher: matcher.New(),
+		Parser:  parser.New(),
+	}
+
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	if len(o.Loader.Sources) == 0 {
+		o.Loader.Sources = []loader.Source{osenv.New()}
+	}
+
+	loaded, err := o.Loader.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	o.Matcher.EnvVars = loaded
+	o.Walker.Matcher = o.Matcher
+	o.Walker.Decoder = o.Decoder
+	o.Walker.Parser = o.Parser
+
+	return o, nil
+}
+
 // WithTagName sets a custom struct tag name to override the default "env" tag.
-func WithTagName(tag string) any {
-	return walker.WithTagName(tag)
+func WithTagName(tag string) Option {
+	return func(o *Options) {
+		o.Walker.TagName = tag
+		o.Matcher.TagName = tag
+	}
 }
 
 // WithDelimiterTag sets the struct tag name used for the delimiter.
 // The default tag name is "delim".
-func WithDelimiterTag(tag string) any {
-	return walker.WithDelimiterTag(tag)
+func WithDelimiterTag(tag string) Option {
+	return func(o *Options) {
+		o.Walker.DelimTag = tag
+	}
 }
 
 // WithDelimiter sets the delimiter used to separate slice/map elements
 // in environment variable values. The default delimiter is ",".
-func WithDelimiter(delim string) any {
-	return walker.WithDelimiter(delim)
+func WithDelimiter(delim string) Option {
+	return func(o *Options) {
+		o.Walker.DefaultDelim = delim
+	}
 }
 
 // WithSeparatorTag sets the struct tag name used for the separator.
 // The default tag name is "sep".
-func WithSeparatorTag(tag string) any {
-	return walker.WithSeparatorTag(tag)
+func WithSeparatorTag(tag string) Option {
+	return func(o *Options) {
+		o.Walker.SepTag = tag
+	}
 }
 
 // WithSeparator sets the separator used for key-value pairs in map environment
 // variable values. The default separator is ":".
-func WithSeparator(sep string) any {
-	return walker.WithSeparator(sep)
+func WithSeparator(sep string) Option {
+	return func(o *Options) {
+		o.Walker.DefaultSep = sep
+	}
 }
 
 // WithDecodeUnsetTag sets the struct tag name used for decoding unset environment variables.
 // The default tag name is "decodeunset".
-func WithDecodeUnsetTag(tag string) any {
-	return walker.WithDecodeUnsetTag(tag)
+func WithDecodeUnsetTag(tag string) Option {
+	return func(o *Options) {
+		o.Walker.DecodeUnsetTag = tag
+	}
 }
 
 // WithDecodeUnset enables decoding unset environment variables.
 // By default, unset environment variables are not decoded.
-func WithDecodeUnset() any {
-	return walker.WithDecodeUnset()
+func WithDecodeUnset() Option {
+	return func(o *Options) {
+		o.Walker.DecodeUnset = true
+	}
 }
 
 // WithInitTag sets the struct tag name used for initialization mode.
 // The default tag name is "init".
-func WithInitTag(tag string) any {
-	return walker.WithInitTag(tag)
+func WithInitTag(tag string) Option {
+	return func(o *Options) {
+		o.Walker.InitTag = tag
+	}
 }
 
 // WithInitNever disables automatic initialization of maps, slices, and pointers
 // By default they are initialized only when a matching
 // environment variable is found.
-func WithInitNever() any {
-	return walker.WithInitNever()
+func WithInitNever() Option {
+	return func(o *Options) {
+		o.Walker.InitMode = walker.InitNever
+	}
 }
 
 // WithInitAlways enables automatic initialization of maps, slices, and pointers
 // regardless of whether matching environment variables are found.
 // By default they are initialized only when a matching
 // environment variable is found.
-func WithInitAlways() any {
-	return walker.WithInitAlways()
+func WithInitAlways() Option {
+	return func(o *Options) {
+		o.Walker.InitMode = walker.InitAlways
+	}
 }
 
 // WithDefaultTag sets the struct tag name used for default values.
 // The default tag name is "default".
-func WithDefaultTag(tag string) any {
-	return matcher.WithDefaultTag(tag)
+func WithDefaultTag(tag string) Option {
+	return func(o *Options) {
+		o.Matcher.DefaultTag = tag
+	}
 }
 
 // WithExpandTag sets the struct tag name used for environment variable expansion.
 // The default tag name is "expand".
-func WithExpandTag(tag string) any {
-	return matcher.WithExpandTag(tag)
+func WithExpandTag(tag string) Option {
+	return func(o *Options) {
+		o.Matcher.ExpandTag = tag
+	}
 }
 
 // WithFileTag sets the struct tag name used for file paths.
 // The default tag name is "file".
-func WithFileTag(tag string) any {
-	return matcher.WithFileTag(tag)
+func WithFileTag(tag string) Option {
+	return func(o *Options) {
+		o.Matcher.FileTag = tag
+	}
 }
 
 // WithNotEmptyTag sets the struct tag name used for validating that values are not empty.
 // The default tag name is "notempty".
-func WithNotEmptyTag(tag string) any {
-	return matcher.WithNotEmptyTag(tag)
+func WithNotEmptyTag(tag string) Option {
+	return func(o *Options) {
+		o.Matcher.NotEmptyTag = tag
+	}
 }
 
 // WithRequired is a global setting to validate that values are required.
 // By default, fields are not required.
-func WithRequired() any {
-	return matcher.WithRequired()
+func WithRequired() Option {
+	return func(o *Options) {
+		o.Matcher.Required = true
+	}
 }
 
 // WithNotEmpty is a global setting to validate that values are not empty.
 // By default, empty values are not allowed.
-func WithNotEmpty() any {
-	return matcher.WithNotEmpty()
+func WithNotEmpty() Option {
+	return func(o *Options) {
+		o.Matcher.NotEmpty = true
+	}
 }
 
 // WithExpand is a global setting to expand environment variables in values.
 // By default, environment variables are not expanded.
-func WithExpand() any {
-	return matcher.WithExpand()
+func WithExpand() Option {
+	return func(o *Options) {
+		o.Matcher.Expand = true
+	}
 }
 
 // WithDisableFallback enforces strict matching using the "env" tag.
 // By default, it will try the field name, snake case field name, and all struct tags until a match is found.
-func WithDisableFallback() any {
-	return matcher.WithDisableFallback()
+func WithDisableFallback() Option {
+	return func(o *Options) {
+		o.Matcher.DisableFallback = true
+	}
 }
 
 // WithDecoder registers a custom decoder function for a specific interface.
-func WithDecoder(iface any, f func(v any, value string) error) any {
-	return decoder.WithDecoder(iface, f)
+func WithDecoder(iface any, f func(v any, value string) error) Option {
+	return func(o *Options) {
+		o.Decoder.Decoders[iface] = f
+	}
 }
 
 // WithTypeParser registers a custom parser function for a specific type.
 // This allows extending the parser to support additional types beyond
 // the built-in supported types.
-func WithTypeParser(t reflect.Type, f func(value string) (any, error)) any {
-	return parser.WithTypeParser(t, f)
+func WithTypeParser(t reflect.Type, f func(value string) (any, error)) Option {
+	return func(o *Options) {
+		o.Parser.TypeParsers[t] = f
+	}
 }
 
 // WithTypeParsers registers multiple custom parser functions for specific types.
 // This allows extending the parser to support additional types beyond
 // the built-in supported types.
 // This is a convenience function for registering multiple type parsers at once.
-func WithTypeParsers(parsers map[reflect.Type]func(value string) (any, error)) any {
-	return parser.WithTypeParsers(parsers)
+func WithTypeParsers(parsers map[reflect.Type]func(value string) (any, error)) Option {
+	return func(o *Options) {
+		for t, f := range parsers {
+			o.Parser.TypeParsers[t] = f
+		}
+	}
 }
 
 // WithKindParser registers a custom parser function for a specific reflect.Kind.
 // This allows extending the parser to support additional kinds beyond
 // the built-in supported kinds.
-func WithKindParser(k reflect.Kind, f func(value string) (any, error)) any {
-	return parser.WithKindParser(k, f)
+func WithKindParser(k reflect.Kind, f func(value string) (any, error)) Option {
+	return func(o *Options) {
+		o.Parser.KindParsers[k] = f
+	}
 }
 
 // WithKindParsers registers multiple custom parser functions for specific reflect.Kinds.
 // This allows extending the parser to support additional kinds beyond
 // the built-in supported kinds.
 // This is a convenience function for registering multiple kind parsers at once.
-func WithKindParsers(parsers map[reflect.Kind]func(value string) (any, error)) any {
-	return parser.WithKindParsers(parsers)
+func WithKindParsers(parsers map[reflect.Kind]func(value string) (any, error)) Option {
+	return func(o *Options) {
+		for k, f := range parsers {
+			o.Parser.KindParsers[k] = f
+		}
+	}
 }
 
 // WithSource adds a source to the loader.
-func WithSource(source loader.Source) any {
-	return loader.WithSource(source)
+func WithSource(source loader.Source) Option {
+	return func(o *Options) {
+		o.Loader.Sources = append(o.Loader.Sources, source)
+	}
 }
 
 // WithSources adds multiple sources to the loader.
 // This is a convenience function for adding multiple sources at once.
-func WithSources(sources ...loader.Source) any {
-	return loader.WithSources(sources...)
+func WithSources(sources ...loader.Source) Option {
+	return func(o *Options) {
+		o.Loader.Sources = append(o.Loader.Sources, sources...)
+	}
 }
 
 // WithFilter registers a custom filter function for environment variables.
 // The filter function is used to determine which environment variables should be used.
-func WithFilter(filter func(string) bool) any {
-	return loader.WithFilter(filter)
+func WithFilter(filter func(string) bool) Option {
+	return func(o *Options) {
+		o.Loader.Filters = append(o.Loader.Filters, filter)
+	}
 }
 
 // WithTransform registers a custom transformation function for environment variables.
 // The transformation function is used to modify environment variable keys before they are applied.
-func WithTransform(transform func(string) string) any {
-	return loader.WithTransform(transform)
+func WithTransform(transform func(string) string) Option {
+	return func(o *Options) {
+		o.Loader.Transforms = append(o.Loader.Transforms, transform)
+	}
 }
 
 // WithPrefix filters environment variables by prefix and strips the prefix
 // before matching. For example, with prefix "APP_", the environment variable
 // "APP_PORT=8080" would be matched as "PORT=8080".
-func WithPrefix(prefix string) any {
-	return loader.WithPrefix(prefix)
+func WithPrefix(prefix string) Option {
+	return func(o *Options) {
+		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+			return strings.HasPrefix(key, prefix)
+		})
+
+		o.Loader.Transforms = append(o.Loader.Transforms, func(key string) string {
+			return strings.TrimPrefix(key, prefix)
+		})
+	}
 }
 
 // WithSuffix filters environment variables by suffix and strips the suffix
 // during matching. For example, with suffix "_TEST", the environment variable
 // "PORT_TEST=8080" would be matched as "PORT=8080".
-func WithSuffix(suffix string) any {
-	return loader.WithSuffix(suffix)
+func WithSuffix(suffix string) Option {
+	return func(o *Options) {
+		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+			return strings.HasSuffix(key, suffix)
+		})
+
+		o.Loader.Transforms = append(o.Loader.Transforms, func(key string) string {
+			return strings.TrimSuffix(key, suffix)
+		})
+	}
 }
 
 // WithHasPrefix filters environment variables by prefix but preserves the prefix
 // during matching. For example, with prefix "APP_", the environment variable
 // "APP_PORT=8080" would be matched as "APP_PORT=8080".
-func WithHasPrefix(prefix string) any {
-	return loader.WithHasPrefix(prefix)
+func WithHasPrefix(prefix string) Option {
+	return func(o *Options) {
+		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+			return strings.HasPrefix(key, prefix)
+		})
+	}
 }
 
 // WithHasSuffix filters environment variables by suffix but preserves the suffix
 // during matching. For example, with suffix "_TEST", the environment variable
 // "PORT_TEST=8080" would be matched as "PORT_TEST=8080".
-func WithHasSuffix(suffix string) any {
-	return loader.WithHasSuffix(suffix)
+func WithHasSuffix(suffix string) Option {
+	return func(o *Options) {
+		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+			return strings.HasSuffix(key, suffix)
+		})
+	}
 }
 
 // WithHasMatch filters environment variables using a regular expression pattern.
-func WithHasMatch(pattern string) any {
-	return loader.WithHasMatch(pattern)
+func WithHasMatch(pattern regexp.Regexp) Option {
+	return func(o *Options) {
+		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+			return pattern.MatchString(key)
+		})
+	}
 }
 
 // WithTrimPrefix removes the specified prefix from environment variable names
 // before matching. Unlike WithPrefix, it does not filter variables.
-func WithTrimPrefix(prefix string) any {
-	return loader.WithTrimPrefix(prefix)
+func WithTrimPrefix(prefix string) Option {
+	return func(o *Options) {
+		o.Loader.Transforms = append(o.Loader.Transforms, func(key string) string {
+			return strings.TrimPrefix(key, prefix)
+		})
+	}
 }
 
 // WithTrimSuffix removes the specified suffix from environment variable names
 // before matching. Unlike WithHasSuffix, it does not filter variables.
-func WithTrimSuffix(suffix string) any {
-	return loader.WithTrimSuffix(suffix)
-}
-
-// WithEnvVarsSourceSource uses the provided map of environment variables instead of reading
-// from the OS environment.
-func WithEnvVarsSource(envs map[string]string) any {
-	return loader.WithEnvVarsSource(envs)
-}
-
-// WithOsEnvSource adds OS environment variables as a source.
-func WithOsEnvSource() any {
-	return loader.WithOsEnvSource()
-}
-
-// WithFileSource adds environment variables from a file as a source.
-// The file should contain environment variables in KEY=VALUE format.
-func WithFileSource(path string) any {
-	return loader.WithFileSource(path)
+func WithTrimSuffix(suffix string) Option {
+	return func(o *Options) {
+		o.Loader.Transforms = append(o.Loader.Transforms, func(key string) string {
+			return strings.TrimSuffix(key, suffix)
+		})
+	}
 }
 
 // WithDefaults adds default values as a fallback source when no other
 // sources provide a value. This can be used as an alternative to
 // setting default values via struct tags.
-func WithDefaults(envs map[string]string) any {
-	return loader.WithDefaults(envs)
+func WithDefaults(envs map[string]string) Option {
+	return func(o *Options) {
+		o.Loader.Defaults = envs
+	}
+}
+
+// WithMapEnvSource uses the provided map of environment variables instead of reading
+// from the OS environment.
+func WithMapEnvSource(envs map[string]string) Option {
+	return func(o *Options) {
+		o.Loader.Sources = append(o.Loader.Sources, mapenv.New(envs))
+	}
+}
+
+// WithOSEnvSource adds OS environment variables as a source.
+func WithOSEnvSource() Option {
+	return func(o *Options) {
+		o.Loader.Sources = append(o.Loader.Sources, osenv.New())
+	}
+}
+
+// WithDotEnvSource adds environment variables from a file as a source.
+// The file should contain environment variables in KEY=VALUE format.
+func WithDotEnvSource(path string) Option {
+	return func(o *Options) {
+		o.Loader.Sources = append(o.Loader.Sources, dotenv.New(path))
+	}
 }
 
 // Parse processes the provided configuration struct using environment variables
 // and the specified options. It traverses the struct fields and applies the
 // environment configuration according to the defined rules and options.
-func Parse(cfg any, opts ...any) error {
-	w := walker.New()
-
-	if err := w.Build(opts...); err != nil {
+func Parse(cfg any, opts ...Option) error {
+	b, err := Build(opts...)
+	if err != nil {
 		return err
 	}
 
-	return w.Walk(cfg)
+	return b.Walker.Walk(cfg)
 }
 
 // MustParse is like Parse but panics if an error occurs during parsing.
-func MustParse(cfg any, opts ...any) {
+func MustParse(cfg any, opts ...Option) {
 	if err := Parse(cfg, opts...); err != nil {
 		panic(err)
 	}
@@ -269,14 +416,14 @@ func MustParse(cfg any, opts ...any) {
 
 // ParseAs is a generic version of Parse that creates and returns a new instance
 // of the specified type T with the environment configuration applied.
-func ParseAs[T any](opts ...any) (T, error) {
+func ParseAs[T any](opts ...Option) (T, error) {
 	var t T
 	err := Parse(&t, opts...)
 	return t, err
 }
 
 // MustParseAs is like ParseAs but panics if an error occurs during parsing.
-func MustParseAs[T any](opts ...any) T {
+func MustParseAs[T any](opts ...Option) T {
 	t, err := ParseAs[T](opts...)
 	if err != nil {
 		panic(err)

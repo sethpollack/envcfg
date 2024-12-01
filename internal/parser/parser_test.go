@@ -6,15 +6,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseKind(t *testing.T) {
 	tt := []struct {
-		name     string
-		kind     reflect.Kind
-		value    string
-		expected any
-		errType  error
+		name        string
+		kind        reflect.Kind
+		value       string
+		expected    any
+		expectedErr bool
 	}{
 		{
 			name:     "string",
@@ -41,10 +42,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid int",
-			kind:    reflect.Int,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid int",
+			kind:        reflect.Int,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "int8",
@@ -59,10 +60,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid int8",
-			kind:    reflect.Int8,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid int8",
+			kind:        reflect.Int8,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "int16",
@@ -77,10 +78,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid int16",
-			kind:    reflect.Int16,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid int16",
+			kind:        reflect.Int16,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "int32",
@@ -95,10 +96,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid int32",
-			kind:    reflect.Int32,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid int32",
+			kind:        reflect.Int32,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "int64",
@@ -113,10 +114,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid int64",
-			kind:    reflect.Int64,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid int64",
+			kind:        reflect.Int64,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "uint",
@@ -131,10 +132,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid uint",
-			kind:    reflect.Uint,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid uint",
+			kind:        reflect.Uint,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "uint8",
@@ -149,10 +150,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid uint8",
-			kind:    reflect.Uint8,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid uint8",
+			kind:        reflect.Uint8,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "uint16",
@@ -167,10 +168,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid uint16",
-			kind:    reflect.Uint16,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid uint16",
+			kind:        reflect.Uint16,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "uint32",
@@ -185,10 +186,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid uint32",
-			kind:    reflect.Uint32,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid uint32",
+			kind:        reflect.Uint32,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "uint64",
@@ -203,10 +204,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid uint64",
-			kind:    reflect.Uint64,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid uint64",
+			kind:        reflect.Uint64,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "float32",
@@ -221,10 +222,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid float32",
-			kind:    reflect.Float32,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid float32",
+			kind:        reflect.Float32,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "float64",
@@ -239,10 +240,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid float64",
-			kind:    reflect.Float64,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid float64",
+			kind:        reflect.Float64,
+			value:       "invalid",
+			expectedErr: true,
 		},
 		{
 			name:     "bool",
@@ -257,10 +258,10 @@ func TestParseKind(t *testing.T) {
 			expected: nil,
 		},
 		{
-			name:    "invalid bool",
-			kind:    reflect.Bool,
-			value:   "invalid",
-			errType: assert.AnError,
+			name:        "invalid bool",
+			kind:        reflect.Bool,
+			value:       "invalid",
+			expectedErr: true,
 		},
 	}
 
@@ -269,24 +270,23 @@ func TestParseKind(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			newValue, _, err := p.ParseKind(tc.kind, tc.value)
-			if tc.errType != nil {
-				assert.Error(t, err)
+			if tc.expectedErr {
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expected, newValue)
 			}
-
-			assert.Equal(t, tc.expected, newValue)
 		})
 	}
 }
 
 func TestParseType(t *testing.T) {
 	tt := []struct {
-		name     string
-		typ      reflect.Type
-		value    string
-		expected any
-		errType  error
+		name        string
+		typ         reflect.Type
+		value       string
+		expected    any
+		expectedErr bool
 	}{
 		{
 			name:     "duration",
@@ -307,13 +307,12 @@ func TestParseType(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			newValue, _, err := p.ParseType(tc.typ, tc.value)
-			if tc.errType != nil {
-				assert.Error(t, err)
+			if tc.expectedErr {
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tc.expected, newValue)
 			}
-
-			assert.Equal(t, tc.expected, newValue)
 		})
 	}
 }
@@ -328,14 +327,12 @@ func TestParseTypeWithParser(t *testing.T) {
 	var inter Inter
 
 	p := New()
-	if err := p.Build(WithTypeParser(reflect.TypeOf(&inter).Elem(), func(value string) (any, error) {
+	p.TypeParsers[reflect.TypeOf(&inter).Elem()] = func(value string) (any, error) {
 		return &Impl{Value: value}, nil
-	})); err != nil {
-		assert.NoError(t, err)
 	}
 
 	newValue, _, err := p.ParseType(reflect.TypeOf(&inter).Elem(), "hello")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, &Impl{Value: "hello"}, newValue)
 }

@@ -8,70 +8,20 @@ import (
 
 type ParserFunc func(value string) (any, error)
 
-type Option func(*Parser)
-
-// WithTypeParser registers a custom parser function for a specific reflect.Type.
-// This allows extending the parser to support additional types beyond
-// the built-in supported types.
-func WithTypeParser(t reflect.Type, parserFunc func(value string) (any, error)) Option {
-	return func(r *Parser) {
-		r.typeParsers[t] = ParserFunc(parserFunc)
-	}
-}
-
-// WithTypeParsers registers multiple custom parser functions for specific reflect.Types.
-// This is a convenience function for registering multiple type parsers at once.
-func WithTypeParsers(parsers map[reflect.Type]func(value string) (any, error)) Option {
-	return func(p *Parser) {
-		for k, v := range parsers {
-			p.typeParsers[k] = ParserFunc(v)
-		}
-	}
-}
-
-// WithKindParser registers a custom parser function for a specific reflect.Kind.
-// This allows extending the parser to support additional kinds beyond
-// the built-in supported kinds.
-func WithKindParser(k reflect.Kind, parserFunc func(value string) (any, error)) Option {
-	return func(p *Parser) {
-		p.kindParsers[k] = ParserFunc(parserFunc)
-	}
-}
-
-// WithKindParsers registers multiple custom parser functions for specific reflect.Kinds.
-// This is a convenience function for registering multiple kind parsers at once.
-func WithKindParsers(parsers map[reflect.Kind]func(value string) (any, error)) Option {
-	return func(p *Parser) {
-		for k, v := range parsers {
-			p.kindParsers[k] = ParserFunc(v)
-		}
-	}
-}
-
 type Parser struct {
-	kindParsers map[reflect.Kind]ParserFunc
-	typeParsers map[reflect.Type]ParserFunc
+	KindParsers map[reflect.Kind]ParserFunc
+	TypeParsers map[reflect.Type]ParserFunc
 }
 
 func New() *Parser {
 	return &Parser{
-		kindParsers: kindParsers(),
-		typeParsers: typeParsers(),
+		KindParsers: kindParsers(),
+		TypeParsers: typeParsers(),
 	}
-}
-
-func (p *Parser) Build(opts ...any) error {
-	for _, opt := range opts {
-		if v, ok := opt.(Option); ok {
-			v(p)
-		}
-	}
-
-	return nil
 }
 
 func (p *Parser) ParseType(rt reflect.Type, value string) (any, bool, error) {
-	parser, ok := p.typeParsers[rt]
+	parser, ok := p.TypeParsers[rt]
 	if !ok {
 		return nil, false, nil
 	}
@@ -85,7 +35,7 @@ func (p *Parser) ParseType(rt reflect.Type, value string) (any, bool, error) {
 }
 
 func (p *Parser) ParseKind(k reflect.Kind, value string) (any, bool, error) {
-	parser, ok := p.kindParsers[k]
+	parser, ok := p.KindParsers[k]
 	if !ok {
 		return nil, false, nil
 	}
@@ -99,7 +49,7 @@ func (p *Parser) ParseKind(k reflect.Kind, value string) (any, bool, error) {
 }
 
 func (p *Parser) HasParser(rt reflect.Type) bool {
-	return p.typeParsers[rt] != nil || p.kindParsers[rt.Kind()] != nil
+	return p.TypeParsers[rt] != nil || p.KindParsers[rt.Kind()] != nil
 }
 
 func typeParsers() map[reflect.Type]ParserFunc {

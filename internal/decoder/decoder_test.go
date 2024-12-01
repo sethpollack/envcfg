@@ -66,7 +66,7 @@ func (b *binaryUnmarshaler) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func TestFromReflectValue(t *testing.T) {
+func TestToDecoder(t *testing.T) {
 	tt := []struct {
 		name  string
 		input interface{}
@@ -96,10 +96,9 @@ func TestFromReflectValue(t *testing.T) {
 	for _, tc := range tt {
 		r := New()
 
-		err := r.Build(WithDecoder((*customIface)(nil), func(v any, value string) error {
+		r.Decoders[(*customIface)(nil)] = func(v any, value string) error {
 			return v.(*custom).CustomDecode(value)
-		}))
-		require.NoError(t, err)
+		}
 
 		t.Run(tc.name, func(t *testing.T) {
 			rv := reflect.ValueOf(tc.input)
