@@ -386,7 +386,7 @@ envcfg supports multiple configuration sources that can be used individually or 
 Example combining multiple sources:
 
 ```go
-cfg := envcfg.New(
+	envcfg.Parse(&cfg,
     // Load from OS environment first
     envcfg.WithOSEnvSource(),
 
