@@ -55,6 +55,7 @@ Parse environment variables into Go structs with minimal boilerplate and first-c
     - [Custom Parser Functions](#custom-parser-functions)
     - [Custom Decoder Functions](#custom-decoder-functions)
     - [Loader Options](#loader-options)
+    - [Configuration Sources](#configuration-sources)
 
 ## Installation
 
@@ -345,6 +346,12 @@ type Config struct {
 
 #### Loader Options
 
+Loader options configure how environment variables are loaded and filtered before being matched to struct fields. These options allow you to:
+- Add different sources of configuration (environment variables, files, external services)
+- Filter which environment variables are considered
+- Transform environment variable names before matching
+- Set default values for when environment variables are not found
+
 | Option | Description |
 |--------|-------------|
 | `WithSource` | Adds a source to the loader |
@@ -363,5 +370,35 @@ type Config struct {
 | `WithHasSuffix` | Adds a suffix filter to the loader |
 | `WithHasMatch` | Adds a pattern filter to the loader |
 
+#### Configuration Sources
+
+envcfg supports multiple configuration sources that can be used individually or combined. Built-in sources have dedicated `With*` functions, while custom sources and those maintained as separate Go modules (to keep dependencies isolated) can be added using `WithSource`.
+
+
+| Option | Description |
+|--------|-------------|
+| `WithOSEnvSource` | Adds OS environment variables as a source |
+| `WithMapEnvSource` | Uses the provided map of environment variables as a source |
+| `WithDotEnvSource` | Adds environment variables from a .env file as a source |
+| `WithSource(awssm.New(...))` | Adds AWS Secrets Manager as a source |
+
+
+Example combining multiple sources:
+
+```go
+cfg := envcfg.New(
+    // Load from OS environment first
+    envcfg.WithOSEnvSource(),
+
+    // Then from .env file
+    envcfg.WithDotEnvSource(".env"),
+
+    // Then from AWS Secrets Manager
+    envcfg.WithSource(awssm.New(
+        awssm.WithRegion("us-west-2"),
+        awssm.WithSecretID("myapp/config"),
+    )),
+)
+```
 
 See [GoDoc](https://pkg.go.dev/github.com/sethpollack/envcfg) for more details.
