@@ -5,7 +5,7 @@ Parse environment variables into Go structs with minimal boilerplate and first-c
 [![Go Reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/sethpollack/envcfg)
 [![Go Report Card](https://img.shields.io/badge/go%20report-A+-brightgreen?logo=go&style=flat-square)](https://goreportcard.com/report/github.com/sethpollack/envcfg)
 [![Coverage](https://img.shields.io/codecov/c/github/sethpollack/envcfg?logo=codecov&style=flat-square)](https://codecov.io/gh/sethpollack/envcfg)
-[![Test Status](https://img.shields.io/github/actions/workflow/status/sethpollack/envcfg/ci.yml?logo=github&style=flat-square)](https://github.com/sethpollack/envcfg/actions)
+[![Test Status](https://img.shields.io/github/actions/workflow/status/sethpollack/envcfg/test.yml?logo=github&style=flat-square)](https://github.com/sethpollack/envcfg/actions)
 [![Release](https://img.shields.io/github/v/release/sethpollack/envcfg?logo=github&style=flat-square)](https://github.com/sethpollack/envcfg/releases/latest)
 [![License](https://img.shields.io/github/license/sethpollack/envcfg?logo=opensourceinitiative&logoColor=white&style=flat-square)](https://github.com/sethpollack/envcfg/blob/main/LICENSE)
 
