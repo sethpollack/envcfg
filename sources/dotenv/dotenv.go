@@ -21,11 +21,6 @@ func New(path string) *source {
 }
 
 func (s *source) Load() (map[string]string, error) {
-	_, err := os.Stat(s.path)
-	if err != nil {
-		return nil, err
-	}
-
 	bytes, err := os.ReadFile(s.path)
 	if err != nil {
 		return nil, err
