@@ -352,6 +352,31 @@ Loader options configure how environment variables are loaded and filtered befor
 - Transform environment variable names before matching
 - Set default values for when environment variables are not found
 
+Sources are processed in the order they are added, with later sources taking precedence over earlier ones. This ordering allows you to:
+- Set default values by adding a source with defaults first
+- Override values by adding sources with higher precedence later
+- Create a hierarchy of configuration (e.g., defaults → shared config → environment-specific config → local overrides)
+
+For example:
+```go
+loader := envcfg.NewLoader(
+    // First source: defaults (lowest precedence)
+    envcfg.WithMapEnvSource(map[string]string{
+        "APP_PORT": "8080",
+        "LOG_LEVEL": "info",
+    }),
+    // Second source: .env file
+    envcfg.WithDotEnvSource(".env"),
+    // Third source: OS environment (highest precedence)
+    envcfg.WithOSEnvSource(),
+)
+```
+
+In this setup:
+1. Default values are loaded first
+2. Values from the .env file override the defaults
+3. OS environment variables take precedence over both defaults and .env file
+
 | Option | Description |
 |--------|-------------|
 | `WithSource` | Adds a source to the loader |
@@ -359,7 +384,6 @@ Loader options configure how environment variables are loaded and filtered befor
 | `WithOSEnvSource` | Adds OS environment variables as a source |
 | `WithMapEnvSource` | Uses the provided map of environment variables as a source |
 | `WithDotEnvSource` | Adds environment variables from a file as a source |
-| `WithDefaults` | Adds default values to the loader |
 | `WithPrefix` | Combines `WithTrimPrefix` and `WithHasPrefix` |
 | `WithSuffix` | Combines `WithTrimSuffix` and `WithHasSuffix` |
 | `WithTransform` | Adds a transform function that modifies environment variable keys |

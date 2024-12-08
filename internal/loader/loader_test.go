@@ -32,28 +32,6 @@ func TestLoad(t *testing.T) {
 			expected: map[string]string{"TEST_KEY": "value"},
 		},
 		{
-			name: "defaults with no overrides",
-			loader: Loader{
-				Sources:  []Source{&testSource{envs: map[string]string{"TEST_KEY": "value"}}},
-				Defaults: map[string]string{"DEFAULT_KEY": "default_value"},
-			},
-			expected: map[string]string{
-				"DEFAULT_KEY": "default_value",
-				"TEST_KEY":    "value",
-			},
-		},
-		{
-			name: "defaults with overrides",
-			loader: Loader{
-				Sources:  []Source{&testSource{envs: map[string]string{"TEST_KEY": "value", "DEFAULT_KEY": "default_override_value"}}},
-				Defaults: map[string]string{"DEFAULT_KEY": "default_value"},
-			},
-			expected: map[string]string{
-				"DEFAULT_KEY": "default_override_value",
-				"TEST_KEY":    "value",
-			},
-		},
-		{
 			name: "with filter",
 			loader: Loader{
 				Sources: []Source{&testSource{envs: map[string]string{

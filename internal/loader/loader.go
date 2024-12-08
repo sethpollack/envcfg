@@ -6,7 +6,6 @@ type Source interface {
 
 type Loader struct {
 	Sources    []Source
-	Defaults   map[string]string
 	Filters    []func(string) bool
 	Transforms []func(string) string
 }
@@ -17,10 +16,6 @@ func New() *Loader {
 
 func (l *Loader) Load() (map[string]string, error) {
 	envs := make(map[string]string)
-
-	for k, v := range l.Defaults {
-		envs[k] = v
-	}
 
 	for _, s := range l.Sources {
 		loaded, err := s.Load()

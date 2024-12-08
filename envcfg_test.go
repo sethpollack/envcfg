@@ -697,33 +697,6 @@ func TestParseURL(t *testing.T) {
 	}, cfg)
 }
 
-func TestParseWithDefaults(t *testing.T) {
-	t.Setenv("EMPTY", "")
-	t.Setenv("SET", "set value")
-
-	type Config struct {
-		Empty   string `default:"default value"`
-		Set     string `default:"default value"`
-		Missing string `default:"default value"`
-		Other   string
-	}
-
-	cfg := Config{}
-	err := envcfg.Parse(&cfg, envcfg.WithDefaults(
-		map[string]string{"OTHER": "other value"},
-	))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, Config{
-		Empty:   "",
-		Set:     "set value",
-		Missing: "default value",
-		Other:   "other value",
-	}, cfg)
-}
-
 func TestParseInitValues(t *testing.T) {
 	type Inner struct {
 		Value string

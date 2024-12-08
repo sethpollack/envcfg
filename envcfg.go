@@ -363,15 +363,6 @@ func WithTrimSuffix(suffix string) Option {
 	}
 }
 
-// WithDefaults adds default values as a fallback source when no other
-// sources provide a value. This can be used as an alternative to
-// setting default values via struct tags.
-func WithDefaults(envs map[string]string) Option {
-	return func(o *Options) {
-		o.Loader.Defaults = envs
-	}
-}
-
 // WithMapEnvSource uses the provided map of environment variables instead of reading
 // from the OS environment.
 func WithMapEnvSource(envs map[string]string) Option {
