@@ -383,24 +383,6 @@ envcfg supports multiple configuration sources that can be used individually or 
 | `WithSource(awssm.New(...))` | Adds AWS Secrets Manager as a source |
 
 
-Example combining multiple sources:
-
-```go
-  envcfg.Parse(&cfg,
-    // Load from OS environment first
-    envcfg.WithOSEnvSource(),
-
-    // Then from .env file
-    envcfg.WithDotEnvSource(".env"),
-
-    // Then from AWS Secrets Manager
-    envcfg.WithSource(awssm.New(
-        awssm.WithRegion("us-west-2"),
-        awssm.WithSecretID("myapp/config"),
-    )),
-)
-```
-
 #### Source Ordering
 
 Sources are processed in the order they are added, with later sources taking precedence over earlier ones. This ordering allows you to:
@@ -408,16 +390,20 @@ Sources are processed in the order they are added, with later sources taking pre
 - Override values by adding sources with higher precedence later
 - Create a hierarchy of configuration (e.g., defaults → shared config → environment-specific config → local overrides)
 
-For example:
 ```go
-loader := envcfg.NewLoader(
+  envcfg.Parse(&cfg,
     // First source: defaults (lowest precedence)
     envcfg.WithMapEnvSource(map[string]string{
         "APP_PORT": "8080",
         "LOG_LEVEL": "info",
     }),
-    // Second source: .env file
+    // Then from .env file
     envcfg.WithDotEnvSource(".env"),
+    // Then from AWS Secrets Manager
+    envcfg.WithSource(awssm.New(
+        awssm.WithRegion("us-west-2"),
+        awssm.WithSecretID("myapp/config"),
+    )),
     // Third source: OS environment (highest precedence)
     envcfg.WithOSEnvSource(),
 )
@@ -425,7 +411,7 @@ loader := envcfg.NewLoader(
 
 In this setup:
 1. Default values are loaded first
-2. Values from the .env file override the defaults
-3. OS environment variables take precedence over both defaults and .env file
+2. Then values from the .env file are loaded next
+3. Then values from AWS Secrets Manager
+4. Finally, OS environment variables take precedence over both defaults and .env file
 
-See [GoDoc](https://pkg.go.dev/github.com/sethpollack/envcfg) for more details.
