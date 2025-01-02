@@ -272,8 +272,8 @@ Config:
 > ```
 
 ### Init Options
-- `vars` - Initialize when vars are present (default)
-- `any` - Initialize when vars are present or default values are provided.
+- `vars` - Initialize when values are present with the exception of structs that only have default values. (default)
+- `any` - Same as `vars`, but also initialize structs that only have default values.
 - `always` - Always initialize
 - `never` - Never initialize
 

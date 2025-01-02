@@ -97,11 +97,14 @@ func (w *Walker) visit(v *Value) error {
 			return err
 		}
 
-		if initMode == InitVars && !tmp.IsSet {
-			return nil
+		if tmp.Kind() == reflect.Struct {
+			if initMode == InitVars && !tmp.IsSet {
+				return nil
+			}
 		}
 
-		if initMode == InitAny && (!tmp.IsSet && !tmp.IsDefault) {
+		// never init empty pointers unless init mode is always
+		if initMode != InitAlways && (!tmp.IsSet && !tmp.IsDefault) {
 			return nil
 		}
 
