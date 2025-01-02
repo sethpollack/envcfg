@@ -258,6 +258,19 @@ Config:
 | `ignore` | Ignore field | `false` | `ignore:"true"` | `env:",ignore"` or `env:"-"` |
 | `decodeunset` | Decode unset environment variables | `false` | `decodeunset:"true"` | `env:",decodeunset"` |
 
+> [!WARNING]
+> When setting default values for slices, avoid using the comma as it conflicts with tag parsing. Either use a different delimiter or set array values using environment variables:
+> ```go
+> type Config struct {
+>     Tags []string `env:"TAGS,default=tag1,tag2"` // This will fail!
+> }
+>
+> // Do this instead:
+> type Config struct {
+>     Tags []string `env:"TAGS,delim=;,default=tag1;tag2"` // Use a different delimiter
+> }
+> ```
+
 ### Init Options
 - `values` - Initialize when values are present (default)
 - `always` - Always initialize
