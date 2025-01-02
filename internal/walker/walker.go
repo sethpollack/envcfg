@@ -509,7 +509,12 @@ func appendSlice(v, e *Value) {
 
 	v.Set(reflect.Append(v.Value, e.Value))
 
-	v.IsSet = true
+	if e.IsSet {
+		v.IsSet = true
+		v.IsDefault = false
+	} else if e.IsDefault && !v.IsSet {
+		v.IsDefault = true
+	}
 }
 
 func setMapIndex(v, k, e *Value) {
@@ -523,5 +528,10 @@ func setMapIndex(v, k, e *Value) {
 
 	v.SetMapIndex(k.Value, e.Value)
 
-	v.IsSet = true
+	if e.IsSet {
+		v.IsSet = true
+		v.IsDefault = false
+	} else if e.IsDefault && !v.IsSet {
+		v.IsDefault = true
+	}
 }
