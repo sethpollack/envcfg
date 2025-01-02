@@ -697,30 +697,31 @@ func TestParseURL(t *testing.T) {
 	}, cfg)
 }
 
-func TestParseInitValues(t *testing.T) {
+func TestParseInitVars(t *testing.T) {
 	type Inner struct {
 		Value string
 	}
 
 	type Config struct {
-		String           string
-		StringPtr        *string
-		Int              int
-		IntPtr           *int
-		Bool             bool
-		BoolPtr          *bool
-		Float            float64
-		FloatPtr         *float64
-		Struct           Inner
-		StructPtr        *Inner
-		Slice            []string
-		SlicePtr         *[]string
-		Map              map[string]string
-		PtrMap           *map[string]string
-		Duration         time.Duration
-		DurationPtr      *time.Duration
-		URL              url.URL
-		URLPtr           *url.URL
+		String      string
+		StringPtr   *string
+		Int         int
+		IntPtr      *int
+		Bool        bool
+		BoolPtr     *bool
+		Float       float64
+		FloatPtr    *float64
+		Struct      Inner
+		StructPtr   *Inner
+		Slice       []string
+		SlicePtr    *[]string
+		Map         map[string]string
+		PtrMap      *map[string]string
+		Duration    time.Duration
+		DurationPtr *time.Duration
+		URL         url.URL
+		URLPtr      *url.URL
+
 		EmptyString      string
 		EmptyStringPtr   *string
 		EmptyInt         int
@@ -765,24 +766,176 @@ func TestParseInitValues(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, Config{
-		String:           "hello",
-		StringPtr:        strPtr("hello"),
-		Int:              1,
-		IntPtr:           intPtr(1),
-		Bool:             true,
-		BoolPtr:          boolPtr(true),
-		Float:            1.1,
-		FloatPtr:         float64Ptr(1.1),
-		Struct:           Inner{Value: "hello"},
-		StructPtr:        &Inner{Value: "hello"},
-		Slice:            []string{"hello"},
-		SlicePtr:         &[]string{"hello"},
-		Map:              map[string]string{"key": "hello"},
-		PtrMap:           &map[string]string{"key": "hello"},
-		Duration:         10 * time.Second,
-		DurationPtr:      durationPtr(10 * time.Second),
-		URL:              url.URL{Scheme: "http", Host: "example.com"},
-		URLPtr:           &url.URL{Scheme: "https", Host: "example.com"},
+		String:      "hello",
+		StringPtr:   strPtr("hello"),
+		Int:         1,
+		IntPtr:      intPtr(1),
+		Bool:        true,
+		BoolPtr:     boolPtr(true),
+		Float:       1.1,
+		FloatPtr:    float64Ptr(1.1),
+		Struct:      Inner{Value: "hello"},
+		StructPtr:   &Inner{Value: "hello"},
+		Slice:       []string{"hello"},
+		SlicePtr:    &[]string{"hello"},
+		Map:         map[string]string{"key": "hello"},
+		PtrMap:      &map[string]string{"key": "hello"},
+		Duration:    10 * time.Second,
+		DurationPtr: durationPtr(10 * time.Second),
+		URL:         url.URL{Scheme: "http", Host: "example.com"},
+		URLPtr:      &url.URL{Scheme: "https", Host: "example.com"},
+
+		EmptyString:      "",
+		EmptyStringPtr:   nil,
+		EmptyInt:         0,
+		EmptyIntPtr:      nil,
+		EmptyBool:        false,
+		EmptyBoolPtr:     nil,
+		EmptyFloat:       0,
+		EmptyFloatPtr:    nil,
+		EmptyStruct:      Inner{},
+		EmptyStructPtr:   nil,
+		EmptySlice:       nil,
+		EmptySlicePtr:    nil,
+		EmptyMap:         nil,
+		EmptyMapPtr:      nil,
+		EmptyDuration:    0,
+		EmptyDurationPtr: nil,
+		EmptyURL:         url.URL{},
+		EmptyURLPtr:      nil,
+	}, cfg)
+}
+
+func TestParseInitAny(t *testing.T) {
+	type Inner struct {
+		Value string
+	}
+
+	type DefaultInner struct {
+		Value string `default:"hello"`
+	}
+
+	type Config struct {
+		String      string
+		StringPtr   *string
+		Int         int
+		IntPtr      *int
+		Bool        bool
+		BoolPtr     *bool
+		Float       float64
+		FloatPtr    *float64
+		Struct      Inner
+		StructPtr   *Inner
+		Slice       []string
+		SlicePtr    *[]string
+		Map         map[string]string
+		PtrMap      *map[string]string
+		Duration    time.Duration
+		DurationPtr *time.Duration
+		URL         url.URL
+		URLPtr      *url.URL
+
+		DefaultString      string   `default:"hello"`
+		DefaultStringPtr   *string  `default:"hello"`
+		DefaultInt         int      `default:"1"`
+		DefaultIntPtr      *int     `default:"1"`
+		DefaultBool        bool     `default:"true"`
+		DefaultBoolPtr     *bool    `default:"true"`
+		DefaultFloat       float64  `default:"1.1"`
+		DefaultFloatPtr    *float64 `default:"1.1"`
+		DefaultStruct      DefaultInner
+		DefaultStructPtr   *DefaultInner
+		DefaultSlice       []string           `default:"hello"`
+		DefaultSlicePtr    *[]string          `default:"hello"`
+		DefaultMap         map[string]string  `default:"key:hello"`
+		DefaultMapPtr      *map[string]string `default:"key:hello"`
+		DefaultDuration    time.Duration      `default:"10s"`
+		DefaultDurationPtr *time.Duration     `default:"10s"`
+		DefaultURL         url.URL            `default:"http://example.com"`
+		DefaultURLPtr      *url.URL           `default:"https://example.com"`
+
+		EmptyString      string
+		EmptyStringPtr   *string
+		EmptyInt         int
+		EmptyIntPtr      *int
+		EmptyBool        bool
+		EmptyBoolPtr     *bool
+		EmptyFloat       float64
+		EmptyFloatPtr    *float64
+		EmptyStruct      Inner
+		EmptyStructPtr   *Inner
+		EmptySlice       []string
+		EmptySlicePtr    *[]string
+		EmptyMap         map[string]string
+		EmptyMapPtr      *map[string]string
+		EmptyDuration    time.Duration
+		EmptyDurationPtr *time.Duration
+		EmptyURL         url.URL
+		EmptyURLPtr      *url.URL
+	}
+
+	t.Setenv("STRING", "hello")
+	t.Setenv("STRING_PTR", "hello")
+	t.Setenv("INT", "1")
+	t.Setenv("INT_PTR", "1")
+	t.Setenv("BOOL", "true")
+	t.Setenv("BOOL_PTR", "true")
+	t.Setenv("FLOAT", "1.1")
+	t.Setenv("FLOAT_PTR", "1.1")
+	t.Setenv("STRUCT_VALUE", "hello")
+	t.Setenv("STRUCT_PTR_VALUE", "hello")
+	t.Setenv("SLICE_0", "hello")
+	t.Setenv("SLICE_PTR_0", "hello")
+	t.Setenv("MAP_KEY", "hello")
+	t.Setenv("PTR_MAP_KEY", "hello")
+	t.Setenv("DURATION", "10s")
+	t.Setenv("DURATION_PTR", "10s")
+	t.Setenv("URL", "http://example.com")
+	t.Setenv("URL_PTR", "https://example.com")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithInitAny())
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{
+		String:      "hello",
+		StringPtr:   strPtr("hello"),
+		Int:         1,
+		IntPtr:      intPtr(1),
+		Bool:        true,
+		BoolPtr:     boolPtr(true),
+		Float:       1.1,
+		FloatPtr:    float64Ptr(1.1),
+		Struct:      Inner{Value: "hello"},
+		StructPtr:   &Inner{Value: "hello"},
+		Slice:       []string{"hello"},
+		SlicePtr:    &[]string{"hello"},
+		Map:         map[string]string{"key": "hello"},
+		PtrMap:      &map[string]string{"key": "hello"},
+		Duration:    10 * time.Second,
+		DurationPtr: durationPtr(10 * time.Second),
+		URL:         url.URL{Scheme: "http", Host: "example.com"},
+		URLPtr:      &url.URL{Scheme: "https", Host: "example.com"},
+
+		DefaultString:      "hello",
+		DefaultStringPtr:   strPtr("hello"),
+		DefaultInt:         1,
+		DefaultIntPtr:      intPtr(1),
+		DefaultBool:        true,
+		DefaultBoolPtr:     boolPtr(true),
+		DefaultFloat:       1.1,
+		DefaultFloatPtr:    float64Ptr(1.1),
+		DefaultStruct:      DefaultInner{Value: "hello"},
+		DefaultStructPtr:   &DefaultInner{Value: "hello"},
+		DefaultSlice:       []string{"hello"},
+		DefaultSlicePtr:    &[]string{"hello"},
+		DefaultMap:         map[string]string{"key": "hello"},
+		DefaultMapPtr:      &map[string]string{"key": "hello"},
+		DefaultDuration:    10 * time.Second,
+		DefaultDurationPtr: durationPtr(10 * time.Second),
+		DefaultURL:         url.URL{Scheme: "http", Host: "example.com"},
+		DefaultURLPtr:      &url.URL{Scheme: "https", Host: "example.com"},
+
 		EmptyString:      "",
 		EmptyStringPtr:   nil,
 		EmptyInt:         0,
@@ -815,9 +968,7 @@ func TestParseInitNever(t *testing.T) {
 		EmptyBoolPtr     *bool
 		EmptyFloatPtr    *float64
 		EmptyStructPtr   *Inner
-		EmptySlice       []string
 		EmptySlicePtr    *[]string
-		EmptyMap         map[string]string
 		EmptyMapPtr      *map[string]string
 		EmptyDurationPtr *time.Duration
 		EmptyURLPtr      *url.URL
@@ -845,9 +996,7 @@ func TestParseInitNever(t *testing.T) {
 		EmptyBoolPtr:     nil,
 		EmptyFloatPtr:    nil,
 		EmptyStructPtr:   nil,
-		EmptySlice:       nil,
 		EmptySlicePtr:    nil,
-		EmptyMap:         nil,
 		EmptyMapPtr:      nil,
 		EmptyDurationPtr: nil,
 		EmptyURLPtr:      nil,
@@ -865,8 +1014,6 @@ func TestParseInitAlways(t *testing.T) {
 		EmptyBool     *bool
 		EmptyFloat    *float64
 		EmptyStruct   *Inner
-		EmptySlice    *[]string
-		EmptyMap      *map[string]string
 		EmptyDuration *time.Duration
 		EmptyURL      *url.URL
 	}
@@ -881,8 +1028,6 @@ func TestParseInitAlways(t *testing.T) {
 		EmptyBool:     boolPtr(false),
 		EmptyFloat:    float64Ptr(0),
 		EmptyStruct:   &Inner{},
-		EmptySlice:    &[]string{},
-		EmptyMap:      &map[string]string{},
 		EmptyDuration: durationPtr(0),
 		EmptyURL:      &url.URL{},
 	}, cfg)

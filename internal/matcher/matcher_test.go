@@ -28,8 +28,10 @@ func TestGetValue(t *testing.T) {
 		Path    []tag.TagMap
 		EnvVars map[string]string
 
-		Expected    string
-		ExpectedErr error
+		Expected          string
+		ExpectedIsFound   bool
+		ExpectedIsDefault bool
+		ExpectedErr       error
 	}{
 		{
 			name: "not found",
@@ -53,8 +55,9 @@ func TestGetValue(t *testing.T) {
 					},
 				},
 			},
-			EnvVars:  map[string]string{"FOO_BAR": "foo"},
-			Expected: "foo",
+			EnvVars:         map[string]string{"FOO_BAR": "foo"},
+			Expected:        "foo",
+			ExpectedIsFound: true,
 		},
 		{
 			name: "nested",
@@ -72,8 +75,9 @@ func TestGetValue(t *testing.T) {
 					},
 				},
 			},
-			EnvVars:  map[string]string{"APP_FOO_BAR": "foo"},
-			Expected: "foo",
+			EnvVars:         map[string]string{"APP_FOO_BAR": "foo"},
+			Expected:        "foo",
+			ExpectedIsFound: true,
 		},
 		{
 			name: "deep nested",
@@ -97,8 +101,9 @@ func TestGetValue(t *testing.T) {
 					},
 				},
 			},
-			EnvVars:  map[string]string{"APP_OTHER_FOO_BAR": "foo"},
-			Expected: "foo",
+			EnvVars:         map[string]string{"APP_OTHER_FOO_BAR": "foo"},
+			Expected:        "foo",
+			ExpectedIsFound: true,
 		},
 		{
 			name: "fallback",
@@ -116,8 +121,9 @@ func TestGetValue(t *testing.T) {
 					},
 				},
 			},
-			EnvVars:  map[string]string{"APP_FOOBAR": "foo"},
-			Expected: "foo",
+			EnvVars:         map[string]string{"APP_FOOBAR": "foo"},
+			Expected:        "foo",
+			ExpectedIsFound: true,
 		},
 		{
 			name: "required",
@@ -188,7 +194,8 @@ func TestGetValue(t *testing.T) {
 				"OTHER_VAR":   "other",
 				"APP_FOO_BAR": "${OTHER_VAR}",
 			},
-			Expected: "other",
+			Expected:        "other",
+			ExpectedIsFound: true,
 		},
 		{
 			name: "default",
@@ -206,7 +213,9 @@ func TestGetValue(t *testing.T) {
 					},
 				},
 			},
-			Expected: "foo",
+			Expected:          "foo",
+			ExpectedIsFound:   false,
+			ExpectedIsDefault: true,
 		},
 		{
 			name: "default + expand",
@@ -221,7 +230,9 @@ func TestGetValue(t *testing.T) {
 			EnvVars: map[string]string{
 				"OTHER_VAR": "other",
 			},
-			Expected: "other",
+			Expected:          "other",
+			ExpectedIsFound:   false,
+			ExpectedIsDefault: true,
 		},
 		{
 			name: "file",
@@ -236,7 +247,8 @@ func TestGetValue(t *testing.T) {
 			EnvVars: map[string]string{
 				"FOO_BAR": tempFile.Name(),
 			},
-			Expected: "${OTHER_VAR}",
+			Expected:        "${OTHER_VAR}",
+			ExpectedIsFound: true,
 		},
 		{
 			name: "expand + file",
@@ -252,7 +264,8 @@ func TestGetValue(t *testing.T) {
 				"OTHER_VAR": "other",
 				"FOO_BAR":   tempFile.Name(),
 			},
-			Expected: "other",
+			Expected:        "other",
+			ExpectedIsFound: true,
 		},
 		{
 			name: "invalid file path",
@@ -274,7 +287,7 @@ func TestGetValue(t *testing.T) {
 			m := New()
 			m.EnvVars = tc.EnvVars
 
-			actual, _, err := m.GetValue(tc.Path)
+			actual, isFound, isDefault, err := m.GetValue(tc.Path)
 
 			if tc.ExpectedErr != nil {
 				assert.EqualError(t, err, tc.ExpectedErr.Error())
@@ -283,6 +296,8 @@ func TestGetValue(t *testing.T) {
 			}
 
 			assert.Equal(t, tc.Expected, actual)
+			assert.Equal(t, tc.ExpectedIsDefault, isDefault)
+			assert.Equal(t, tc.ExpectedIsFound, isFound)
 		})
 	}
 }

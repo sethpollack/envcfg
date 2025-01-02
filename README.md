@@ -254,7 +254,7 @@ Config:
 | `file` | Load value from file | `false` | `file:"true"` | `env:",file"` |
 | `delim` | Delimiter for array values | `,` | `delim:";"` | `env:",delim=;"` |
 | `sep` | Separator for map key-value pairs | `:` | `sep:"="` | `env:",sep="` |
-| `init` | Initialize maps, slices, and pointers | `values` | `init:"always"` | `env:",init=always"` |
+| `init` | Initialize nil pointers | `vars` | `init:"always"` | `env:",init=always"` |
 | `ignore` | Ignore field | `false` | `ignore:"true"` | `env:",ignore"` or `env:"-"` |
 | `decodeunset` | Decode unset environment variables | `false` | `decodeunset:"true"` | `env:",decodeunset"` |
 
@@ -272,7 +272,8 @@ Config:
 > ```
 
 ### Init Options
-- `values` - Initialize when values are present (default)
+- `vars` - Initialize when vars are present (default)
+- `any` - Initialize when vars are present or default values are provided.
 - `always` - Always initialize
 - `never` - Never initialize
 
@@ -336,8 +337,9 @@ type Config struct {
 | `WithDelimiter` | Sets the default delimiter for array and map values | `,` |
 | `WithSeparator` | Sets the default separator for map key-value pairs | `:` |
 | `WithDecodeUnset` | Enables decoding unset environment variables by default | `false` |
-| `WithInitNever` | Sets the initialization strategy to never | `values` |
-| `WithInitAlways` | Sets the initialization strategy to always | `values` |
+| `WithInitAny` | Sets the initialization strategy to `any` | `vars` |
+| `WithInitNever` | Sets the initialization strategy to `never` | `vars` |
+| `WithInitAlways` | Sets the initialization strategy to `always` | `vars` |
 | `WithExpand` | Enables environment variable expansion by default | `false` |
 | `WithNotEmpty` | Enables validating that values are not empty by default | `false` |
 | `WithRequired` | Enables marking fields as required by default | `false` |

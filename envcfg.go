@@ -119,7 +119,17 @@ func WithInitTag(tag string) Option {
 	}
 }
 
-// WithInitNever disables automatic initialization of maps, slices, and pointers
+// WithInitAny enables automatic initialization nil pointers
+// if environment variables are found or if default values are provided.
+// By default they are initialized only when a matching
+// environment variable is found.
+func WithInitAny() Option {
+	return func(o *Options) {
+		o.Walker.InitMode = walker.InitAny
+	}
+}
+
+// WithInitNever disables automatic initialization of nil pointers
 // By default they are initialized only when a matching
 // environment variable is found.
 func WithInitNever() Option {
@@ -128,7 +138,7 @@ func WithInitNever() Option {
 	}
 }
 
-// WithInitAlways enables automatic initialization of maps, slices, and pointers
+// WithInitAlways enables automatic initialization of nil pointers
 // regardless of whether matching environment variables are found.
 // By default they are initialized only when a matching
 // environment variable is found.

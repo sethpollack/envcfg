@@ -226,109 +226,56 @@ func TestWalk(t *testing.T) {
 			},
 		},
 		{
-			name:   "init values slice with match",
+			name:   "init vars value found",
 			walker: New(),
 			cfg: &struct {
-				Slice []string
+				Pointer *struct{ Value string } `init:"vars"`
 			}{},
 			envs: map[string]string{
-				"SLICE_0": "value1",
-				"SLICE_1": "value2",
+				"POINTER_VALUE": "value",
 			},
 			expected: &struct {
-				Slice []string
+				Pointer *struct{ Value string } `init:"vars"`
 			}{
-				Slice: []string{"value1", "value2"},
+				Pointer: &struct{ Value string }{
+					Value: "value",
+				},
 			},
 		},
 		{
-			name:   "init values slice with no match",
+			name:   "init vars ignore defaults",
 			walker: New(),
 			cfg: &struct {
-				Slice []string
+				Pointer *struct {
+					Value string `default:"default"`
+				} `init:"vars"`
 			}{},
-			envs: map[string]string{},
 			expected: &struct {
-				Slice []string
-			}{},
-		},
-		{
-			name:   "init values map with match",
-			walker: New(),
-			cfg: &struct {
-				Map map[string]string
-			}{},
-			envs: map[string]string{
-				"MAP_KEY1": "value1",
-				"MAP_KEY2": "value2",
-			},
-			expected: &struct {
-				Map map[string]string
+				Pointer *struct {
+					Value string `default:"default"`
+				} `init:"vars"`
 			}{
-				Map: map[string]string{"key1": "value1", "key2": "value2"},
+				Pointer: nil,
 			},
 		},
 		{
-			name:   "init values map with no match",
+			name:   "init any defaults",
 			walker: New(),
 			cfg: &struct {
-				Map map[string]string
+				Pointer *struct {
+					Value string `default:"default"`
+				} `init:"any"`
 			}{},
-			envs: map[string]string{},
 			expected: &struct {
-				Map map[string]string
-			}{},
-		},
-		{
-			name:   "never init slice",
-			walker: New(),
-			cfg: &struct {
-				Slice []string `init:"never"`
-			}{},
-			envs: map[string]string{
-				"SLICE_0": "value",
-			},
-			expected: &struct {
-				Slice []string `init:"never"`
-			}{},
-		},
-		{
-			name:   "always init slice",
-			walker: New(),
-			cfg: &struct {
-				Slice []string `init:"always"`
-			}{},
-			envs: map[string]string{},
-			expected: &struct {
-				Slice []string `init:"always"`
+				Pointer *struct {
+					Value string `default:"default"`
+				} `init:"any"`
 			}{
-				Slice: []string{},
-			},
-		},
-		{
-			name:   "never init map",
-			walker: New(),
-			cfg: &struct {
-				Map map[string]string `init:"never"`
-			}{},
-			envs: map[string]string{
-				"MAP_KEY": "value",
-			},
-			expected: &struct {
-				Map map[string]string `init:"never"`
-			}{},
-		},
-		{
-			name:   "always init map",
-			walker: New(),
-			cfg: &struct {
-				Map map[string]string `init:"always"`
-			}{},
-			envs: map[string]string{},
-			expected: &struct {
-				Map map[string]string `init:"always"`
-			}{
-				Map: map[string]string{},
+				Pointer: &struct {
+					Value string `default:"default"`
+				}{
+					Value: "default",
+				},
 			},
 		},
 		{

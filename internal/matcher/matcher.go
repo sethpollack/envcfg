@@ -39,48 +39,48 @@ func New() *Matcher {
 	}
 }
 
-func (m *Matcher) GetValue(path []tag.TagMap) (string, bool, error) {
+func (m *Matcher) GetValue(path []tag.TagMap) (string, bool, bool, error) {
 	opts := m.parseOptions(path[len(path)-1])
 
 	foundMatch, foundKey, foundValue := m.getValue("", path)
 
 	if !foundMatch {
 		if _, ok := opts[m.RequiredTag]; ok {
-			return "", false, fmt.Errorf("required field %s not found", fieldPath(path))
+			return "", false, false, fmt.Errorf("required field %s not found", fieldPath(path))
 		}
 
 		if _, ok := opts[m.DefaultTag]; ok {
 			if _, ok := opts[m.ExpandTag]; ok {
-				return m.expandValue(opts[m.DefaultTag]), true, nil
+				return m.expandValue(opts[m.DefaultTag]), false, true, nil
 			}
-			return opts[m.DefaultTag], true, nil
+			return opts[m.DefaultTag], false, true, nil
 		}
 
-		return "", false, nil
+		return "", false, false, nil
 	}
 
 	if _, ok := opts[m.NotEmptyTag]; ok && foundValue == "" {
-		return "", true, fmt.Errorf("environment variable %s is empty", foundKey)
+		return "", false, false, fmt.Errorf("environment variable %s is empty", foundKey)
 	}
 
 	if _, ok := opts[m.FileTag]; ok {
 		bytes, err := os.ReadFile(foundValue)
 		if err != nil {
-			return "", true, err
+			return "", false, false, err
 		}
 
 		if _, ok := opts[m.ExpandTag]; ok {
-			return m.expandValue(string(bytes)), true, nil
+			return m.expandValue(string(bytes)), true, false, nil
 		}
 
-		return string(bytes), true, nil
+		return string(bytes), true, false, nil
 	}
 
 	if _, ok := opts[m.ExpandTag]; ok {
-		return m.expandValue(foundValue), true, nil
+		return m.expandValue(foundValue), true, false, nil
 	}
 
-	return foundValue, true, nil
+	return foundValue, true, false, nil
 }
 
 func (m *Matcher) HasPrefix(path []tag.TagMap) bool {
