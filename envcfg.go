@@ -261,47 +261,59 @@ func WithKindParsers(parsers map[reflect.Kind]func(value string) (any, error)) O
 	}
 }
 
-// WithSource adds a source to the loader.
-func WithSource(source loader.Source) Option {
+type LoaderOption func(*loader.Loader)
+
+func WithLoader(opts ...LoaderOption) Option {
 	return func(o *Options) {
-		o.Loader.Sources = append(o.Loader.Sources, source)
+		l := loader.New()
+		for _, opt := range opts {
+			opt(l)
+		}
+		o.Loader.Sources = append(o.Loader.Sources, l)
+	}
+}
+
+// WithSource adds a source to the loader.
+func WithSource(source loader.Source) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Sources = append(l.Sources, source)
 	}
 }
 
 // WithSources adds multiple sources to the loader.
 // This is a convenience function for adding multiple sources at once.
-func WithSources(sources ...loader.Source) Option {
-	return func(o *Options) {
-		o.Loader.Sources = append(o.Loader.Sources, sources...)
+func WithSources(sources ...loader.Source) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Sources = append(l.Sources, sources...)
 	}
 }
 
 // WithFilter registers a custom filter function for environment variables.
 // The filter function is used to determine which environment variables should be used.
-func WithFilter(filter func(string) bool) Option {
-	return func(o *Options) {
-		o.Loader.Filters = append(o.Loader.Filters, filter)
+func WithFilter(filter func(string) bool) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Filters = append(l.Filters, filter)
 	}
 }
 
 // WithTransform registers a custom transformation function for environment variables.
 // The transformation function is used to modify environment variable keys before they are applied.
-func WithTransform(transform func(string) string) Option {
-	return func(o *Options) {
-		o.Loader.Transforms = append(o.Loader.Transforms, transform)
+func WithTransform(transform func(string) string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Transforms = append(l.Transforms, transform)
 	}
 }
 
 // WithPrefix filters environment variables by prefix and strips the prefix
 // before matching. For example, with prefix "APP_", the environment variable
 // "APP_PORT=8080" would be matched as "PORT=8080".
-func WithPrefix(prefix string) Option {
-	return func(o *Options) {
-		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+func WithPrefix(prefix string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Filters = append(l.Filters, func(key string) bool {
 			return strings.HasPrefix(key, prefix)
 		})
 
-		o.Loader.Transforms = append(o.Loader.Transforms, func(key string) string {
+		l.Transforms = append(l.Transforms, func(key string) string {
 			return strings.TrimPrefix(key, prefix)
 		})
 	}
@@ -310,13 +322,13 @@ func WithPrefix(prefix string) Option {
 // WithSuffix filters environment variables by suffix and strips the suffix
 // during matching. For example, with suffix "_TEST", the environment variable
 // "PORT_TEST=8080" would be matched as "PORT=8080".
-func WithSuffix(suffix string) Option {
-	return func(o *Options) {
-		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+func WithSuffix(suffix string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Filters = append(l.Filters, func(key string) bool {
 			return strings.HasSuffix(key, suffix)
 		})
 
-		o.Loader.Transforms = append(o.Loader.Transforms, func(key string) string {
+		l.Transforms = append(l.Transforms, func(key string) string {
 			return strings.TrimSuffix(key, suffix)
 		})
 	}
@@ -325,9 +337,9 @@ func WithSuffix(suffix string) Option {
 // WithHasPrefix filters environment variables by prefix but preserves the prefix
 // during matching. For example, with prefix "APP_", the environment variable
 // "APP_PORT=8080" would be matched as "APP_PORT=8080".
-func WithHasPrefix(prefix string) Option {
-	return func(o *Options) {
-		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+func WithHasPrefix(prefix string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Filters = append(l.Filters, func(key string) bool {
 			return strings.HasPrefix(key, prefix)
 		})
 	}
@@ -336,18 +348,18 @@ func WithHasPrefix(prefix string) Option {
 // WithHasSuffix filters environment variables by suffix but preserves the suffix
 // during matching. For example, with suffix "_TEST", the environment variable
 // "PORT_TEST=8080" would be matched as "PORT_TEST=8080".
-func WithHasSuffix(suffix string) Option {
-	return func(o *Options) {
-		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+func WithHasSuffix(suffix string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Filters = append(l.Filters, func(key string) bool {
 			return strings.HasSuffix(key, suffix)
 		})
 	}
 }
 
 // WithHasMatch filters environment variables using a regular expression pattern.
-func WithHasMatch(pattern regexp.Regexp) Option {
-	return func(o *Options) {
-		o.Loader.Filters = append(o.Loader.Filters, func(key string) bool {
+func WithHasMatch(pattern regexp.Regexp) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Filters = append(l.Filters, func(key string) bool {
 			return pattern.MatchString(key)
 		})
 	}
@@ -355,9 +367,9 @@ func WithHasMatch(pattern regexp.Regexp) Option {
 
 // WithTrimPrefix removes the specified prefix from environment variable names
 // before matching. Unlike WithPrefix, it does not filter variables.
-func WithTrimPrefix(prefix string) Option {
-	return func(o *Options) {
-		o.Loader.Transforms = append(o.Loader.Transforms, func(key string) string {
+func WithTrimPrefix(prefix string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Transforms = append(l.Transforms, func(key string) string {
 			return strings.TrimPrefix(key, prefix)
 		})
 	}
@@ -365,9 +377,9 @@ func WithTrimPrefix(prefix string) Option {
 
 // WithTrimSuffix removes the specified suffix from environment variable names
 // before matching. Unlike WithHasSuffix, it does not filter variables.
-func WithTrimSuffix(suffix string) Option {
-	return func(o *Options) {
-		o.Loader.Transforms = append(o.Loader.Transforms, func(key string) string {
+func WithTrimSuffix(suffix string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Transforms = append(l.Transforms, func(key string) string {
 			return strings.TrimSuffix(key, suffix)
 		})
 	}
@@ -375,24 +387,24 @@ func WithTrimSuffix(suffix string) Option {
 
 // WithMapEnvSource uses the provided map of environment variables instead of reading
 // from the OS environment.
-func WithMapEnvSource(envs map[string]string) Option {
-	return func(o *Options) {
-		o.Loader.Sources = append(o.Loader.Sources, mapenv.New(envs))
+func WithMapEnvSource(envs map[string]string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Sources = append(l.Sources, mapenv.New(envs))
 	}
 }
 
 // WithOSEnvSource adds OS environment variables as a source.
-func WithOSEnvSource() Option {
-	return func(o *Options) {
-		o.Loader.Sources = append(o.Loader.Sources, osenv.New())
+func WithOSEnvSource() LoaderOption {
+	return func(l *loader.Loader) {
+		l.Sources = append(l.Sources, osenv.New())
 	}
 }
 
 // WithDotEnvSource adds environment variables from a file as a source.
 // The file should contain environment variables in KEY=VALUE format.
-func WithDotEnvSource(path string) Option {
-	return func(o *Options) {
-		o.Loader.Sources = append(o.Loader.Sources, dotenv.New(path))
+func WithDotEnvSource(path string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Sources = append(l.Sources, dotenv.New(path))
 	}
 }
 

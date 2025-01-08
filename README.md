@@ -360,6 +360,12 @@ type Config struct {
 |--------|-------------|
 | `WithDecoder` | Registers a custom decoder function for a specific interface |
 
+#### Loaders
+
+| Option | Description |
+|--------|-------------|
+| `WithLoader` | Registers a loader |
+
 #### Loader Options
 
 Loader options configure how environment variables are loaded and filtered before being matched to struct fields. These options allow you to:
@@ -407,20 +413,18 @@ Sources are processed in the order they are added, with later sources taking pre
 
 ```go
   envcfg.Parse(&cfg,
-    // First source: defaults (lowest precedence)
-    envcfg.WithMapEnvSource(map[string]string{
-        "APP_PORT": "8080",
+    envcfg.WithLoader(
+      envcfg.WithMapEnvSource(map[string]string{
+          "APP_PORT": "8080",
         "LOG_LEVEL": "info",
-    }),
-    // Then from .env file
-    envcfg.WithDotEnvSource(".env"),
-    // Then from AWS Secrets Manager
-    envcfg.WithSource(awssm.New(
+      }),
+      envcfg.WithDotEnvSource(".env"),
+      envcfg.WithSource(awssm.New(
         awssm.WithRegion("us-west-2"),
         awssm.WithSecretID("myapp/config"),
-    )),
-    // Third source: OS environment (highest precedence)
-    envcfg.WithOSEnvSource(),
+      )),
+      envcfg.WithOSEnvSource(),
+    ),
 )
 ```
 
