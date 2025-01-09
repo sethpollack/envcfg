@@ -266,9 +266,15 @@ type LoaderOption func(*loader.Loader)
 func WithLoader(opts ...LoaderOption) Option {
 	return func(o *Options) {
 		l := loader.New()
+
 		for _, opt := range opts {
 			opt(l)
 		}
+
+		if len(l.Sources) == 0 {
+			l.Sources = []loader.Source{osenv.New()}
+		}
+
 		o.Loader.Sources = append(o.Loader.Sources, l)
 	}
 }
