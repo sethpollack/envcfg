@@ -3,11 +3,14 @@ package envcfg_test
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"reflect"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/sethpollack/envcfg"
+	"github.com/sethpollack/envcfg/sources/osenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1033,13 +1036,93 @@ func TestParseInitAlways(t *testing.T) {
 	}, cfg)
 }
 
-func TestParseDecodeUnset(t *testing.T) {
+func TestParseWithTagName(t *testing.T) {
 	type Config struct {
-		Unset Unset `env:",decodeunset"`
+		Foo string `foo:"MY_FOO_VAR"`
+	}
+
+	t.Setenv("MY_FOO_VAR", "foo")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithTagName("foo"))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Foo: "foo"}, cfg)
+}
+
+func TestParseWithDelimiterTag(t *testing.T) {
+	type Config struct {
+		Delim []string `custom_delim:";"`
+	}
+
+	t.Setenv("DELIM", "1;2;3")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithDelimiterTag("custom_delim"))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Delim: []string{"1", "2", "3"}}, cfg)
+}
+
+func TestParseWithDelimiter(t *testing.T) {
+	type Config struct {
+		Delim []string
+	}
+
+	t.Setenv("DELIM", "1;2;3")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithDelimiter(";"))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Delim: []string{"1", "2", "3"}}, cfg)
+}
+
+func TestParseWithSeparatorTag(t *testing.T) {
+	type Config struct {
+		Map map[string]string `custom_sep:";"`
+	}
+
+	t.Setenv("MAP", "key1;value1,key2;value2,key3;value3")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithSeparatorTag("custom_sep"))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Map: map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}}, cfg)
+}
+
+func TestParseWithSeparator(t *testing.T) {
+	type Config struct {
+		Map map[string]string
+	}
+
+	t.Setenv("MAP", "key1=value1,key2=value2,key3=value3")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithSeparator("="))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Map: map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}}, cfg)
+}
+
+func TestParseWithDecodeUnsetTag(t *testing.T) {
+	type Config struct {
+		Unset Unset `custom_decodeunset:"true"`
 	}
 
 	cfg := Config{}
-	err := envcfg.Parse(&cfg)
+	err := envcfg.Parse(&cfg, envcfg.WithDecodeUnsetTag("custom_decodeunset"))
+	require.Error(t, err)
+}
+
+func TestParseWithDecodeUnset(t *testing.T) {
+	type Config struct {
+		Unset Unset
+	}
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithDecodeUnset())
 	require.Error(t, err)
 }
 
@@ -1047,6 +1130,620 @@ type Unset string
 
 func (u *Unset) UnmarshalText(text []byte) error {
 	return fmt.Errorf("unset")
+}
+
+func TestParseWithInitTag(t *testing.T) {
+	type Config struct {
+		Init *string `custom_init:"always"`
+	}
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithInitTag("custom_init"))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Init: strPtr("")}, cfg)
+}
+
+func TestParseWithInitAny(t *testing.T) {
+	type Config struct {
+		Init *string `default:"hello"`
+	}
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithInitAny())
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Init: strPtr("hello")}, cfg)
+}
+
+func TestParseWithInitNever(t *testing.T) {
+	type Config struct {
+		Init *string `default:"hello"`
+	}
+
+	t.Setenv("INIT", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithInitNever())
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Init: nil}, cfg)
+}
+
+func TestParseWithInitAlways(t *testing.T) {
+	type Config struct {
+		Init *string
+	}
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithInitAlways())
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Init: strPtr("")}, cfg)
+}
+
+func TestParseWithDefaultTag(t *testing.T) {
+	type Config struct {
+		Default *string `fallback:"hello"`
+	}
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithDefaultTag("fallback"))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Default: strPtr("hello")}, cfg)
+}
+
+func TestParseWithExpandTag(t *testing.T) {
+	type Config struct {
+		Expand *string `custom_expand:"true"`
+	}
+
+	t.Setenv("EXPAND", "${MY_EXPAND_VAR}")
+	t.Setenv("MY_EXPAND_VAR", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithExpandTag("custom_expand"))
+	require.NoError(t, err)
+	assert.Equal(t, Config{Expand: strPtr("hello")}, cfg)
+}
+
+func TestParseWithExpand(t *testing.T) {
+	type Config struct {
+		Expand *string
+	}
+
+	t.Setenv("EXPAND", "${MY_EXPAND_VAR}")
+	t.Setenv("MY_EXPAND_VAR", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithExpand())
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Expand: strPtr("hello")}, cfg)
+}
+
+func TestParseWithFileTag(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "test.txt")
+	if err != nil {
+		require.NoError(t, err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	_, err = tmpfile.WriteString("hello")
+	require.NoError(t, err)
+
+	type Config struct {
+		File string `custom_file:"true"`
+	}
+
+	t.Setenv("FILE", tmpfile.Name())
+
+	cfg := Config{}
+	err = envcfg.Parse(&cfg, envcfg.WithFileTag("custom_file"))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{File: "hello"}, cfg)
+}
+
+func TestParseWithNotEmptyTag(t *testing.T) {
+	type Config struct {
+		NotEmpty string `custom_notempty:"true"`
+	}
+
+	t.Setenv("NOT_EMPTY", "")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithNotEmptyTag("custom_notempty"))
+	require.Error(t, err)
+}
+
+func TestParseWithNotEmpty(t *testing.T) {
+	type Config struct {
+		NotEmpty string
+	}
+
+	t.Setenv("NOT_EMPTY", "")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithNotEmpty())
+
+	require.Error(t, err)
+}
+
+func TestParseWithRequiredTag(t *testing.T) {
+	type Config struct {
+		Required string `custom_required:"true"`
+	}
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithRequiredTag("custom_required"))
+
+	require.Error(t, err)
+}
+
+func TestParseWithRequired(t *testing.T) {
+	type Config struct {
+		Required string
+	}
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithRequired())
+	require.Error(t, err)
+}
+
+func TestParseWithDisableFallback(t *testing.T) {
+	type Config struct {
+		WithEnvTag    string `env:"WITH_ENV_TAG"`
+		WithoutEnvTag string
+	}
+
+	t.Setenv("WITH_ENV_TAG", "hello")
+	t.Setenv("WITHOUT_ENV_TAG", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithDisableFallback())
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{WithEnvTag: "hello", WithoutEnvTag: ""}, cfg)
+}
+
+func TestParseWithDecoder(t *testing.T) {
+	type Config struct {
+		Custom custom
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithDecoder((*customIface)(nil), func(v any, value string) error {
+		return v.(*custom).CustomDecode(value)
+	}))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: custom{value: "hello"}}, cfg)
+}
+
+type customIface interface {
+	CustomDecode(value string) error
+}
+
+type custom struct {
+	value string
+}
+
+func (c *custom) CustomDecode(value string) error {
+	c.value = value
+	return nil
+}
+
+func TestParseWithTypeParser(t *testing.T) {
+	type Config struct {
+		Custom custom
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithTypeParser(reflect.TypeOf(custom{}), func(value string) (any, error) {
+		return custom{value: value}, nil
+	}))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: custom{value: "hello"}}, cfg)
+}
+
+func TestParseWithTypeParsers(t *testing.T) {
+	type Config struct {
+		Custom custom
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithTypeParsers(map[reflect.Type]func(value string) (any, error){
+		reflect.TypeOf(custom{}): func(value string) (any, error) {
+			return custom{value: value}, nil
+		},
+	}))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: custom{value: "hello"}}, cfg)
+}
+
+func TestParseWithKindParser(t *testing.T) {
+	type Config struct {
+		Custom string
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithKindParser(reflect.String, func(value string) (any, error) {
+		return value + " world", nil
+	}))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: "hello world"}, cfg)
+}
+
+func TestParseWithKindParsers(t *testing.T) {
+	type Config struct {
+		Custom string
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithKindParsers(map[reflect.Kind]func(value string) (any, error){
+		reflect.String: func(value string) (any, error) {
+			return value + " world", nil
+		},
+	}))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: "hello world"}, cfg)
+}
+
+func TestParseWithLoader(t *testing.T) {
+	type Config struct {
+		Custom string
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader())
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: "hello"}, cfg)
+}
+
+func TestParseWithSource(t *testing.T) {
+	type Config struct {
+		Custom string
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithSource(osenv.New()),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: "hello"}, cfg)
+}
+
+func TestParseWithSources(t *testing.T) {
+	type Config struct {
+		Custom string
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithSources(osenv.New()),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: "hello"}, cfg)
+}
+
+func TestParseWithFilter(t *testing.T) {
+	type Config struct {
+		Custom string
+		Other  string
+	}
+
+	t.Setenv("CUSTOM", "hello")
+	t.Setenv("OTHER", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithFilter(func(key string) bool {
+			return key == "CUSTOM"
+		}),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{Custom: "hello", Other: ""}, cfg)
+}
+
+func TestParseWithTransform(t *testing.T) {
+	type Config struct {
+		TransformedString string
+	}
+
+	t.Setenv("STRING", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithTransform(func(key string) string {
+			return "TRANSFORMED_" + key
+		}),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{TransformedString: "hello"}, cfg)
+}
+
+func TestParseWithPrefix(t *testing.T) {
+	type Config struct {
+		CustomString string
+		OtherString  string
+	}
+
+	t.Setenv("PREFIX_CUSTOM_STRING", "hello")
+	t.Setenv("OTHER_STRING", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithPrefix("PREFIX_"),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{CustomString: "hello", OtherString: ""}, cfg)
+}
+func TestParseWithSuffix(t *testing.T) {
+	type Config struct {
+		CustomString string
+		OtherString  string
+	}
+
+	t.Setenv("CUSTOM_STRING_SUFFIX", "hello")
+	t.Setenv("OTHER_STRING", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithSuffix("_SUFFIX"),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{CustomString: "hello", OtherString: ""}, cfg)
+}
+
+func TestParseWithHasPrefix(t *testing.T) {
+	type Config struct {
+		CustomString string
+		OtherString  string
+	}
+
+	t.Setenv("CUSTOM_STRING", "hello")
+	t.Setenv("OTHER_STRING", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithHasPrefix("CUSTOM_"),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{CustomString: "hello", OtherString: ""}, cfg)
+}
+
+func TestParseWithHasSuffix(t *testing.T) {
+	type Config struct {
+		CustomStringSuffix string
+		OtherString        string
+	}
+
+	t.Setenv("CUSTOM_STRING_SUFFIX", "hello")
+	t.Setenv("OTHER_STRING", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithHasSuffix("_SUFFIX"),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{CustomStringSuffix: "hello", OtherString: ""}, cfg)
+}
+
+func TestParseWithHasMatch(t *testing.T) {
+	type Config struct {
+		CustomStringMatch string
+		OtherString       string
+	}
+
+	t.Setenv("CUSTOM_STRING_MATCH", "hello")
+	t.Setenv("OTHER_STRING", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithHasMatch(regexp.MustCompile("CUSTOM")),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{CustomStringMatch: "hello", OtherString: ""}, cfg)
+}
+
+func TestParseWithTrimPrefix(t *testing.T) {
+	type Config struct {
+		CustomString string
+		OtherString  string
+	}
+
+	t.Setenv("TRIM_PREFIX_CUSTOM_STRING", "hello")
+	t.Setenv("OTHER_STRING", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithTrimPrefix("TRIM_PREFIX_"),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{
+		CustomString: "hello",
+		OtherString:  "hello2",
+	}, cfg)
+}
+
+func TestParseWithTrimSuffix(t *testing.T) {
+	type Config struct {
+		CustomString string
+		OtherString  string
+	}
+
+	t.Setenv("CUSTOM_STRING_SUFFIX", "hello")
+	t.Setenv("OTHER_STRING", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithTrimSuffix("_SUFFIX"),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{
+		CustomString: "hello",
+		OtherString:  "hello2",
+	}, cfg)
+}
+
+func TestParseWithMapEnvSource(t *testing.T) {
+	type Config struct {
+		CustomString string
+		OtherString  string
+	}
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithMapEnvSource(map[string]string{
+			"CUSTOM_STRING": "hello",
+			"OTHER_STRING":  "hello2",
+		}),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{
+		CustomString: "hello",
+		OtherString:  "hello2",
+	}, cfg)
+}
+
+func TestParseWithOSEnvSource(t *testing.T) {
+	type Config struct {
+		CustomString string
+		OtherString  string
+	}
+
+	t.Setenv("CUSTOM_STRING", "hello")
+	t.Setenv("OTHER_STRING", "hello2")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithOSEnvSource(),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{
+		CustomString: "hello",
+		OtherString:  "hello2",
+	}, cfg)
+}
+
+func TestParseWithDotEnvSource(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", ".env")
+	if err != nil {
+		require.NoError(t, err)
+	}
+	defer os.Remove(tmpfile.Name())
+
+	_, err = tmpfile.WriteString("CUSTOM_STRING=hello\nOTHER_STRING=hello2")
+	require.NoError(t, err)
+
+	type Config struct {
+		CustomString string
+		OtherString  string
+	}
+
+	cfg := Config{}
+	err = envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithDotEnvSource(tmpfile.Name()),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{
+		CustomString: "hello",
+		OtherString:  "hello2",
+	}, cfg)
+}
+
+func TestParseAs(t *testing.T) {
+	type Config struct {
+		CustomString string
+	}
+
+	t.Setenv("CUSTOM_STRING", "hello")
+
+	cfg, err := envcfg.ParseAs[Config]()
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{CustomString: "hello"}, cfg)
+}
+
+func TestMustParse(t *testing.T) {
+	type Config struct {
+		CustomString string
+	}
+
+	t.Setenv("CUSTOM_STRING", "hello")
+
+	cfg := Config{}
+
+	assert.NotPanics(t, func() {
+		envcfg.MustParse(&cfg)
+	})
+
+	assert.Equal(t, Config{CustomString: "hello"}, cfg)
+}
+
+func TestMustParse_Panic(t *testing.T) {
+	type Config struct {
+		CustomString string `required:"true"`
+	}
+
+	cfg := Config{}
+
+	assert.Panics(t, func() {
+		envcfg.MustParse(&cfg)
+	})
+}
+
+func TestMustParseAs(t *testing.T) {
+	type Config struct {
+		CustomString string
+	}
+
+	t.Setenv("CUSTOM_STRING", "hello")
+
+	var cfg Config
+
+	assert.NotPanics(t, func() {
+		cfg = envcfg.MustParseAs[Config]()
+	})
+
+	assert.Equal(t, Config{CustomString: "hello"}, cfg)
 }
 
 func strPtr(s string) *string {

@@ -180,14 +180,6 @@ func WithNotEmptyTag(tag string) Option {
 	}
 }
 
-// WithRequired is a global setting to validate that values are required.
-// By default, fields are not required.
-func WithRequired() Option {
-	return func(o *Options) {
-		o.Matcher.Required = true
-	}
-}
-
 // WithNotEmpty is a global setting to validate that values are not empty.
 // By default, empty values are not allowed.
 func WithNotEmpty() Option {
@@ -201,6 +193,22 @@ func WithNotEmpty() Option {
 func WithExpand() Option {
 	return func(o *Options) {
 		o.Matcher.Expand = true
+	}
+}
+
+// WithRequiredTag sets the struct tag name used for required values.
+// The default tag name is "required".
+func WithRequiredTag(tag string) Option {
+	return func(o *Options) {
+		o.Matcher.RequiredTag = tag
+	}
+}
+
+// WithRequired is a global setting to validate that values are required.
+// By default, fields are not required.
+func WithRequired() Option {
+	return func(o *Options) {
+		o.Matcher.Required = true
 	}
 }
 
@@ -363,7 +371,7 @@ func WithHasSuffix(suffix string) LoaderOption {
 }
 
 // WithHasMatch filters environment variables using a regular expression pattern.
-func WithHasMatch(pattern regexp.Regexp) LoaderOption {
+func WithHasMatch(pattern *regexp.Regexp) LoaderOption {
 	return func(l *loader.Loader) {
 		l.Filters = append(l.Filters, func(key string) bool {
 			return pattern.MatchString(key)
