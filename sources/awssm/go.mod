@@ -1,6 +1,6 @@
 module github.com/sethpollack/envcfg/sources/awssm
 
-go 1.23.3
+go 1.22
 
 replace github.com/sethpollack/envcfg => ../../
 
