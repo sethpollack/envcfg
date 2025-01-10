@@ -1769,6 +1769,16 @@ func TestMustParseAs(t *testing.T) {
 	assert.Equal(t, Config{CustomString: "hello"}, cfg)
 }
 
+func TestMustParseAs_Panic(t *testing.T) {
+	type Config struct {
+		CustomString string `required:"true"`
+	}
+
+	assert.Panics(t, func() {
+		envcfg.MustParseAs[Config]()
+	})
+}
+
 func strPtr(s string) *string {
 	return &s
 }
