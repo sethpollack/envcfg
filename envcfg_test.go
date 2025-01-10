@@ -1,6 +1,7 @@
 package envcfg_test
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -1417,6 +1418,28 @@ func TestParseWithLoader(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, Config{Custom: "hello"}, cfg)
+}
+
+func TestParseWithLoader_Error(t *testing.T) {
+	type Config struct {
+		Custom string
+	}
+
+	t.Setenv("CUSTOM", "hello")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithSource(&customSource{}),
+	))
+
+	require.Error(t, err)
+}
+
+type customSource struct {
+}
+
+func (c *customSource) Load() (map[string]string, error) {
+	return nil, errors.New("source error")
 }
 
 func TestParseWithSource(t *testing.T) {
