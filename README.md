@@ -54,6 +54,7 @@ Parse environment variables into Go structs with minimal boilerplate and first-c
     - [Default Overrides](#default-overrides)
     - [Custom Parser Functions](#custom-parser-functions)
     - [Custom Decoder Functions](#custom-decoder-functions)
+    - [Loaders](#loaders)
     - [Loader Options](#loader-options)
     - [Configuration Sources](#configuration-sources)
     - [Source Ordering](#source-ordering)
