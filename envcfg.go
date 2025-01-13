@@ -379,6 +379,21 @@ func WithHasMatch(pattern *regexp.Regexp) LoaderOption {
 	}
 }
 
+// WithKeys filters environment variables by specific keys.
+// This is a convenience function for adding multiple keys at once.
+func WithKeys(keys ...string) LoaderOption {
+	return func(l *loader.Loader) {
+		l.Filters = append(l.Filters, func(key string) bool {
+			for _, k := range keys {
+				if k == key {
+					return true
+				}
+			}
+			return false
+		})
+	}
+}
+
 // WithTrimPrefix removes the specified prefix from environment variable names
 // before matching. Unlike WithPrefix, it does not filter variables.
 func WithTrimPrefix(prefix string) LoaderOption {

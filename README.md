@@ -392,6 +392,7 @@ Loader options configure how environment variables are loaded and filtered befor
 | `WithHasPrefix` | Adds a prefix filter to the loader |
 | `WithHasSuffix` | Adds a suffix filter to the loader |
 | `WithHasMatch` | Adds a pattern filter to the loader |
+| `WithKeys` | Adds a filter to the loader that only includes specific keys |
 
 #### Configuration Sources
 

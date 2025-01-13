@@ -1643,6 +1643,31 @@ func TestParseWithHasMatch(t *testing.T) {
 	assert.Equal(t, Config{CustomStringMatch: "hello", OtherString: ""}, cfg)
 }
 
+func TestParseWithKeys(t *testing.T) {
+	type Config struct {
+		Key1 string
+		Key2 string
+		Key3 string
+		Key4 string
+	}
+
+	t.Setenv("KEY1", "hello1")
+	t.Setenv("KEY2", "hello2")
+	t.Setenv("KEY3", "hello3")
+	t.Setenv("KEY4", "hello4")
+
+	cfg := Config{}
+	err := envcfg.Parse(&cfg, envcfg.WithLoader(
+		envcfg.WithKeys("KEY1", "KEY2"),
+	))
+
+	require.NoError(t, err)
+	assert.Equal(t, Config{
+		Key1: "hello1",
+		Key2: "hello2",
+	}, cfg)
+}
+
 func TestParseWithTrimPrefix(t *testing.T) {
 	type Config struct {
 		CustomString string
