@@ -251,7 +251,7 @@ func ExampleParse_validationNotempty() {
 	err := envcfg.Parse(&cfg)
 
 	fmt.Printf("%+v\n", err)
-	// Output: environment variable NOT_EMPTY is empty
+	// Output: environment variable is empty: NOT_EMPTY
 }
 
 func ExampleParse_validationRequired() {
@@ -265,5 +265,5 @@ func ExampleParse_validationRequired() {
 	err := envcfg.Parse(&cfg)
 
 	fmt.Printf("%+v\n", err)
-	// Output: required field Required not found
+	// Output: required field not found: Required
 }

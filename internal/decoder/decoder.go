@@ -54,10 +54,6 @@ func (r *Decoder) ToDecoder(rv reflect.Value) Decode {
 }
 
 func (r *Decoder) toDecoder(v any) Decode {
-	if v == nil {
-		return nil
-	}
-
 	switch v := v.(type) {
 	case Decode:
 		return &wrapper{func(value string) error {

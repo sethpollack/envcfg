@@ -68,9 +68,15 @@ func (b *binaryUnmarshaler) UnmarshalBinary(data []byte) error {
 
 func TestToDecoder(t *testing.T) {
 	tt := []struct {
-		name  string
-		input interface{}
+		name      string
+		input     interface{}
+		expectNil bool
 	}{
+		{
+			name:      "non decoder",
+			input:     []string{},
+			expectNil: true,
+		},
 		{
 			name:  "decoder",
 			input: &decoder{},
@@ -91,6 +97,11 @@ func TestToDecoder(t *testing.T) {
 			name:  "binary unmarshaler",
 			input: &binaryUnmarshaler{},
 		},
+		{
+			name:      "nil",
+			input:     nil,
+			expectNil: true,
+		},
 	}
 
 	for _, tc := range tt {
@@ -104,6 +115,12 @@ func TestToDecoder(t *testing.T) {
 			rv := reflect.ValueOf(tc.input)
 
 			decoder := r.ToDecoder(rv)
+
+			if tc.expectNil {
+				assert.Nil(t, decoder)
+				return
+			}
+
 			require.NotNil(t, decoder)
 
 			err := decoder.Decode(tc.name)

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	errs "github.com/sethpollack/envcfg/errors"
 	"github.com/sethpollack/envcfg/internal/tag"
 )
 
@@ -46,7 +47,7 @@ func (m *Matcher) GetValue(path []tag.TagMap) (string, bool, bool, error) {
 
 	if !foundMatch {
 		if _, ok := opts[m.RequiredTag]; ok {
-			return "", false, false, fmt.Errorf("required field %s not found", fieldPath(path))
+			return "", false, false, fmt.Errorf("%w: %s", errs.ErrRequired, fieldPath(path))
 		}
 
 		if _, ok := opts[m.DefaultTag]; ok {
@@ -60,13 +61,13 @@ func (m *Matcher) GetValue(path []tag.TagMap) (string, bool, bool, error) {
 	}
 
 	if _, ok := opts[m.NotEmptyTag]; ok && foundValue == "" {
-		return "", false, false, fmt.Errorf("environment variable %s is empty", foundKey)
+		return "", false, false, fmt.Errorf("%w: %s", errs.ErrNotEmpty, foundKey)
 	}
 
 	if _, ok := opts[m.FileTag]; ok {
 		bytes, err := os.ReadFile(foundValue)
 		if err != nil {
-			return "", false, false, err
+			return "", false, false, fmt.Errorf("%w: %s", errs.ErrReadFile, err)
 		}
 
 		if _, ok := opts[m.ExpandTag]; ok {

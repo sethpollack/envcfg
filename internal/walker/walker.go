@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/sethpollack/envcfg/errors"
 	"github.com/sethpollack/envcfg/internal/decoder"
 	"github.com/sethpollack/envcfg/internal/matcher"
 	"github.com/sethpollack/envcfg/internal/parser"
@@ -65,12 +66,12 @@ func New() *Walker {
 func (w *Walker) Walk(v any) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr {
-		return fmt.Errorf("expected a pointer to a struct, got %T", v)
+		return fmt.Errorf("%w: expected a pointer to a struct, got %T", errors.ErrNotAPointer, v)
 	}
 
 	elem := rv.Elem()
 	if elem.Kind() != reflect.Struct {
-		return fmt.Errorf("expected a pointer to a struct, got %T", v)
+		return fmt.Errorf("%w: expected a pointer to a struct, got %T", errors.ErrNotAPointer, v)
 	}
 
 	return w.walkStruct(&Value{
@@ -92,8 +93,7 @@ func (w *Walker) visit(v *Value) error {
 			return nil
 		}
 
-		err := w.visit(tmp)
-		if err != nil {
+		if err := w.visit(tmp); err != nil {
 			return err
 		}
 
@@ -116,10 +116,6 @@ func (w *Walker) visit(v *Value) error {
 		v.IsDefault = tmp.IsDefault
 
 		return nil
-	}
-
-	if isPtr(v) {
-		v.Value = v.Value.Elem()
 	}
 
 	value, isSet, isDefault, err := w.Matcher.GetValue(v.Path)
@@ -247,14 +243,11 @@ func (w *Walker) walkDelimitedMap(v *Value, value string, isDefault bool) error 
 	sep := w.separator(v.Path)
 
 	parts := strings.Split(value, delim)
-	if len(parts) == 0 {
-		return nil
-	}
 
 	for _, part := range parts {
 		kv := strings.SplitN(part, sep, 2)
 		if len(kv) != 2 {
-			return fmt.Errorf("expected key and value to be separated by %q, got %q", sep, part)
+			return fmt.Errorf("%w: expected key and value to be separated by %q, got %q", errors.ErrInvalidMapValue, sep, part)
 		}
 
 		keyValue := &Value{
@@ -416,8 +409,6 @@ func (w *Walker) initMode(path []tag.TagMap) InitMode {
 		return InitAlways
 	case "never":
 		return InitNever
-	case "vars":
-		return InitVars
 	case "any":
 		return InitAny
 	default:

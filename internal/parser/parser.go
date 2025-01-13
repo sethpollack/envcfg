@@ -1,9 +1,12 @@
 package parser
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/sethpollack/envcfg/errors"
 )
 
 type ParserFunc func(value string) (any, error)
@@ -59,7 +62,12 @@ func typeParsers() map[reflect.Type]ParserFunc {
 				return nil, nil
 			}
 
-			return time.ParseDuration(value)
+			d, err := time.ParseDuration(value)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %s", errors.ErrInvalidDuration, value)
+			}
+
+			return d, nil
 		},
 	}
 }

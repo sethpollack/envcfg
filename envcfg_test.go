@@ -16,6 +16,48 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestParse(t *testing.T) {
+	tt := map[string]struct {
+		env         map[string]string
+		cfg         any
+		expected    any
+		expectedErr error
+		skipErrIs   bool
+		skip        bool
+		skipReason  string
+	}{}
+
+	for name, tc := range tt {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip(tc.skipReason)
+			}
+
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+
+			cfg := tc.cfg
+			if cfg == nil {
+				cfg = reflect.New(reflect.TypeOf(tc.expected)).Interface()
+			}
+
+			err := envcfg.Parse(cfg)
+
+			if tc.expectedErr != nil {
+				require.Error(t, err)
+				if !tc.skipErrIs {
+					assert.ErrorIs(t, err, tc.expectedErr)
+				}
+			} else {
+				require.NoError(t, err)
+				actual := reflect.ValueOf(cfg).Elem().Interface()
+				assert.Equal(t, tc.expected, actual)
+			}
+		})
+	}
+}
+
 func TestParseString(t *testing.T) {
 	type Config struct {
 		CamelCase    string
@@ -1777,6 +1819,10 @@ func TestMustParseAs_Panic(t *testing.T) {
 	assert.Panics(t, func() {
 		envcfg.MustParseAs[Config]()
 	})
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }
 
 func strPtr(s string) *string {
