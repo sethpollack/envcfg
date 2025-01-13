@@ -9,12 +9,24 @@ import (
 
 var _ loader.Source = (*source)(nil)
 
-type source struct{}
+type source struct {
+	keys []string
+}
 
-func New() *source {
-	return &source{}
+func New(keys ...string) *source {
+	return &source{keys: keys}
 }
 
 func (s *source) Load() (map[string]string, error) {
-	return sources.ToMap(os.Environ()), nil
+	if len(s.keys) == 0 {
+		return sources.ToMap(os.Environ()), nil
+	}
+
+	envs := make(map[string]string)
+
+	for _, key := range s.keys {
+		envs[key] = os.Getenv(key)
+	}
+
+	return envs, nil
 }

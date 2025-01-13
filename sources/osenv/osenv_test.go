@@ -12,6 +12,7 @@ func TestLoad(t *testing.T) {
 		name     string
 		env      map[string]string
 		expected map[string]string
+		keys     []string
 	}{
 		{
 			name:     "empty environment",
@@ -38,6 +39,15 @@ func TestLoad(t *testing.T) {
 				"TEST_KEY2": "value2",
 			},
 		},
+		{
+			name: "specific keys",
+			env: map[string]string{
+				"TEST_KEY1": "value1",
+				"TEST_KEY2": "value2",
+			},
+			keys:     []string{"TEST_KEY1"},
+			expected: map[string]string{"TEST_KEY1": "value1"},
+		},
 	}
 
 	for _, tc := range tt {
@@ -46,7 +56,7 @@ func TestLoad(t *testing.T) {
 				t.Setenv(k, v)
 			}
 
-			src := New()
+			src := New(tc.keys...)
 			actual, err := src.Load()
 
 			require.NoError(t, err)
