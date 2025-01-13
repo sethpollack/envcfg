@@ -290,11 +290,12 @@ By default, `envcfg` will search for environment variables using multiple naming
 For example:
 
 ```go
+os.Setenv("CUSTOM_URL",  "value") // Matches env tag
 os.Setenv("DATABASEURL",  "value") // Matches struct field
 os.Setenv("DATABASE_URL", "value") // Matches snake-case
 os.Setenv("DB_URL",      "value") // Matches json tag
 os.Setenv("DATA_SOURCE", "value") // Matches yaml tag
-os.Setenv("CUSTOM_URL",  "value") // Matches env tag
+// ...
 
 type Config struct {
     DatabaseURL string `json:"db_url" yaml:"data_source" env:"custom_url"`
