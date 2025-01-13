@@ -408,10 +408,9 @@ func WithMapEnvSource(envs map[string]string) LoaderOption {
 }
 
 // WithOSEnvSource adds OS environment variables as a source.
-// If keys are provided, only the specified environment variables will be used.
-func WithOSEnvSource(keys ...string) LoaderOption {
+func WithOSEnvSource() LoaderOption {
 	return func(l *loader.Loader) {
-		l.Sources = append(l.Sources, osenv.New(keys...))
+		l.Sources = append(l.Sources, osenv.New())
 	}
 }
 
