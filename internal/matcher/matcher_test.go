@@ -28,9 +28,10 @@ func TestGetValue(t *testing.T) {
 		EnvVars map[string]string
 
 		// Options
-		Required bool
-		NotEmpty bool
-		Expand   bool
+		Required        bool
+		NotEmpty        bool
+		Expand          bool
+		DisableFallback bool
 
 		Expected          string
 		ExpectedIsFound   bool
@@ -79,6 +80,15 @@ func TestGetValue(t *testing.T) {
 			EnvVars:         map[string]string{"APP_FOOBAR_BAZ": "foo"},
 			Expected:        "foo",
 			ExpectedIsFound: true,
+		},
+		"disable fallback": {
+			Path: parsePath(
+				element{FieldName: "FooBar", TagStr: `json:"foo_bar"`},
+			),
+			EnvVars:         map[string]string{"FOO_BAR": "foo"},
+			DisableFallback: true,
+			Expected:        "",
+			ExpectedIsFound: false,
 		},
 		"required": {
 			Path: parsePath(
@@ -236,10 +246,12 @@ func TestGetValue(t *testing.T) {
 	for name, tc := range tt {
 		t.Run(name, func(t *testing.T) {
 			m := New()
+
 			m.EnvVars = tc.EnvVars
 			m.Required = tc.Required
 			m.NotEmpty = tc.NotEmpty
 			m.Expand = tc.Expand
+			m.DisableFallback = tc.DisableFallback
 
 			actual, isFound, isDefault, err := m.GetValue(tc.Path)
 
