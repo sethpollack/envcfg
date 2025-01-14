@@ -25,7 +25,7 @@ type Options struct {
 	Matcher *matcher.Matcher
 }
 
-func Build(opts ...Option) (*Options, error) {
+func build(opts ...Option) (*Options, error) {
 	o := &Options{
 		Walker:  walker.New(),
 		Decoder: decoder.New(),
@@ -441,7 +441,7 @@ func WithDotEnvSource(path string) LoaderOption {
 // and the specified options. It traverses the struct fields and applies the
 // environment configuration according to the defined rules and options.
 func Parse(cfg any, opts ...Option) error {
-	b, err := Build(opts...)
+	b, err := build(opts...)
 	if err != nil {
 		return err
 	}
