@@ -29,7 +29,7 @@ func Build(opts ...Option) (*Options, error) {
 	o := &Options{
 		Walker:  walker.New(),
 		Decoder: decoder.New(),
-		Loader:  loader.New(),
+		Loader:  &loader.Loader{},
 		Matcher: matcher.New(),
 		Parser:  parser.New(),
 	}
@@ -273,7 +273,7 @@ type LoaderOption func(*loader.Loader)
 
 func WithLoader(opts ...LoaderOption) Option {
 	return func(o *Options) {
-		l := loader.New()
+		l := &loader.Loader{}
 
 		for _, opt := range opts {
 			opt(l)

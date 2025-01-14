@@ -1,5 +1,11 @@
 package loader
 
+import (
+	"fmt"
+
+	errs "github.com/sethpollack/envcfg/errors"
+)
+
 type Source interface {
 	Load() (map[string]string, error)
 }
@@ -10,17 +16,13 @@ type Loader struct {
 	Transforms []func(string) string
 }
 
-func New() *Loader {
-	return &Loader{}
-}
-
 func (l *Loader) Load() (map[string]string, error) {
 	envs := make(map[string]string)
 
 	for _, s := range l.Sources {
 		loaded, err := s.Load()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %w", errs.ErrLoadEnv, err)
 		}
 
 		for k, v := range loaded {
